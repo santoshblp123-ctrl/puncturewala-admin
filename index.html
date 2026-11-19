@@ -1,0 +1,2723 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PunctureWala Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .road-grid {
+      background-size: 30px 30px;
+      background-image:
+        linear-gradient(to right, rgba(203,213,225,0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(203,213,225,0.25) 1px, transparent 1px);
+    }
+    .pulse-dot { animation: pulse-dot 1.8s infinite; }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    .sidebar-link.active { background: #f59e0b20; color: #f59e0b; border-left: 3px solid #f59e0b; }
+    .sidebar-link { border-left: 3px solid transparent; }
+    .toast { animation: slideIn 0.3s ease, fadeOut 0.5s ease 3.5s forwards; }
+    @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+    @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+    .van-marker { animation: bounce 1.5s infinite; }
+    @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* ── Responsive Sidebar ── */
+    #sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+    #sidebar.sidebar-open {
+      transform: translateX(0);
+      box-shadow: 4px 0 32px rgba(0,0,0,0.45);
+    }
+    @media (min-width: 1024px) {
+      #sidebar { transform: translateX(0) !important; box-shadow: none; }
+      #sidebar-overlay { display: none !important; }
+      #hamburger-btn { display: none; }
+    }
+    #sidebar-overlay {
+      display: none;
+    }
+    #sidebar-overlay.show {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex">
+
+  <!-- ========== SIDEBAR OVERLAY (mobile) ========== -->
+  <div id="sidebar-overlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-20"></div>
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside id="sidebar" class="w-64 bg-slate-900 text-white flex flex-col fixed inset-y-0 left-0 z-30">
+    <!-- Logo + Close btn on mobile -->
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center text-slate-900 text-lg font-black shadow">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+        <div>
+          <p class="font-black text-sm text-white leading-tight">PunctureWala</p>
+          <p class="text-[10px] text-amber-400 font-semibold">Admin Dashboard</p>
+        </div>
+      </div>
+      <button onclick="closeSidebar()" class="lg:hidden w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-white">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Nav Links -->
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <button onclick="showPanel('panel-dashboard')" class="sidebar-link active w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition hover:bg-slate-800">
+        <i class="fa-solid fa-gauge-high w-4"></i> डैशबोर्ड
+      </button>
+      <button onclick="showPanel('panel-orders')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-clipboard-list w-4"></i> बुकिंग ऑर्डर
+        <span id="order-badge" class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">3</span>
+      </button>
+      <button onclick="showPanel('panel-map')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-map-location-dot w-4"></i> लाइव वैन मैप
+      </button>
+      <button onclick="showPanel('panel-mechanics')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-user-gear w-4"></i> मैकेनिक टीम
+      </button>
+      <button onclick="showPanel('panel-banner')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-phone-volume w-4 text-emerald-400"></i> कॉल विज्ञापन बैनर
+        <span class="ml-auto text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold">Live</span>
+      </button>
+      <button onclick="showPanel('panel-shop')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-shop w-4 text-blue-400"></i> दुकान / वर्कशॉप लोकेशन
+        <span class="ml-auto text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded-full font-bold">Map Pin</span>
+      </button>
+      <button onclick="showPanel('panel-rates')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-indian-rupee-sign w-4"></i> रेट मैनेजमेंट
+      </button>
+      <button onclick="showPanel('panel-inventory')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-boxes-stacked w-4"></i> टायर इन्वेंटरी
+      </button>
+    </nav>
+
+    <!-- Van Status Control -->
+    <div class="px-4 py-4 border-t border-slate-800">
+      <p class="text-[10px] text-slate-500 uppercase font-bold mb-2">वैन स्टेटस (Global)</p>
+      <div class="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2">
+        <div class="flex items-center gap-2">
+          <span id="global-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot"></span>
+          <span id="global-status-text" class="text-xs font-bold text-emerald-400">उपलब्ध (Free)</span>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="global-van-toggle" onchange="toggleGlobalStatus()" class="sr-only peer" checked>
+          <div class="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <div class="lg:ml-64 flex-1 flex flex-col min-h-screen w-full">
+
+    <!-- Top Header Bar -->
+    <header class="bg-white border-b border-slate-200 px-4 lg:px-6 py-3.5 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+      <div class="flex items-center gap-3">
+        <!-- Hamburger (mobile only) -->
+        <button id="hamburger-btn" onclick="toggleSidebar()" class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-200 lg:hidden shrink-0">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div>
+          <h2 id="page-title" class="font-black text-sm sm:text-base text-slate-900">डैशबोर्ड</h2>
+          <p id="page-subtitle" class="text-[10px] sm:text-[11px] text-slate-500 hidden sm:block">आज का सारांश • <span id="live-time"></span></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
+          <i class="fa-solid fa-mobile-screen"></i>
+          <span class="hidden sm:inline">ग्राहक ऐप खोलें</span>
+        </a>
+        <button onclick="simulateNewOrder()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden sm:inline">नया ऑर्डर (डेमो)</span>
+        </button>
+        <div class="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">A</div>
+      </div>
+    </header>
+
+    <!-- =========== PANELS =========== -->
+    <main class="flex-1 p-4 lg:p-6 space-y-4 lg:space-y-6">
+
+      <!-- ===== 1. DASHBOARD PANEL ===== -->
+      <div id="panel-dashboard" class="space-y-5">
+
+        <!-- ══ LIVE VAN DUTY & BUSY STATUS CONTROL (Admin controls what customers see) ══ -->
+        <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-4 lg:p-5 shadow-xl border border-slate-700">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-700/80">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shrink-0">
+                <i class="fa-solid fa-truck-pickup"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-extrabold text-sm sm:text-base text-white">वैन / मैकेनिक लाइव स्टेटस</h3>
+                  <span id="admin-van-status-pill" class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                    🟢 उपलब्ध (Free)
+                  </span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">यह स्टेटस और वेटिंग टाइम सभी ग्राहकों की स्क्रीन पर लाइव दिखेगा</p>
+              </div>
+            </div>
+
+            <!-- Quick Toggle Buttons -->
+            <div class="flex items-center gap-2">
+              <button onclick="setAdminVanStatus(true, 0)" id="btn-set-free"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow">
+                <i class="fa-solid fa-check mr-1"></i> फ्री / उपलब्ध
+              </button>
+              <button onclick="setAdminVanStatus(false, 15)" id="btn-set-busy"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">
+                <i class="fa-solid fa-clock-rotate-left mr-1"></i> व्यस्त मार्क करें
+              </button>
+            </div>
+          </div>
+
+          <!-- Busy Time Configuration (shown when busy) -->
+          <div id="admin-busy-config" class="hidden pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-amber-300 font-bold">अधिकतम कितना समय लगेगा:</span>
+              <div class="flex gap-1.5" id="quick-min-buttons">
+                <button onclick="setBusyMinutes(10)" class="quick-min-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1 rounded-lg font-bold">10m</button>
+                <button onclick="setBusyMinutes(15)" class="quick-min-btn bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg">15m</button>
+                <button onclick="setBusyMinutes(20)" class="quick-min-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1 rounded-lg font-bold">20m</button>
+                <button onclick="setBusyMinutes(30)" class="quick-min-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1 rounded-lg font-bold">30m</button>
+                <button onclick="setBusyMinutes(45)" class="quick-min-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1 rounded-lg font-bold">45m</button>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="admin-custom-minutes" type="number" min="1" max="120" value="15"
+                class="w-20 bg-slate-900 border border-slate-600 rounded-lg px-2.5 py-1 text-center font-black text-amber-400 focus:outline-none focus:border-amber-400">
+              <span class="text-slate-400">मिनट</span>
+              <button onclick="applyCustomBusyMinutes()"
+                class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg transition">
+                सेव करें
+              </button>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-clipboard-check"></i></div>
+              <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md">+12% आज</span>
+            </div>
+            <p id="kpi-orders" class="text-2xl font-black text-slate-900">27</p>
+            <p class="text-xs text-slate-500 font-medium">कुल ऑर्डर (आज)</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+              <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md">+₹2,100</span>
+            </div>
+            <p id="kpi-revenue" class="text-2xl font-black text-slate-900">₹8,730</p>
+            <p class="text-xs text-slate-500 font-medium">आज की कमाई</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center"><i class="fa-solid fa-hourglass-half"></i></div>
+              <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded-md">Live</span>
+            </div>
+            <p id="kpi-pending" class="text-2xl font-black text-slate-900">3</p>
+            <p class="text-xs text-slate-500 font-medium">पेंडिंग बुकिंग</p>
+          </div>
+          <div onclick="showPanel('panel-orders'); filterOrders('cancelled');" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 cursor-pointer hover:border-red-400 transition hover:shadow-md">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center"><i class="fa-solid fa-ban"></i></div>
+              <span class="text-[10px] text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded-md">रद्द</span>
+            </div>
+            <p id="kpi-cancelled" class="text-2xl font-black text-red-600">0</p>
+            <p class="text-xs text-slate-500 font-medium">रद्द बुकिंग (देखें →)</p>
+          </div>
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-star"></i></div>
+              <span class="text-[10px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded-md">रेटिंग</span>
+            </div>
+            <p class="text-2xl font-black text-slate-900">4.9 ★</p>
+            <p class="text-xs text-slate-500 font-medium">औसत ग्राहक रेटिंग</p>
+          </div>
+        </div>
+
+        <!-- 2 Column Row: Recent Orders + Quick Actions -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          <!-- Recent Orders Table -->
+          <div class="col-span-1 lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="font-bold text-sm text-slate-800">हालिया बुकिंग</h3>
+              <button onclick="showPanel('panel-orders')" class="text-xs text-amber-600 font-semibold hover:underline">सभी देखें →</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs min-w-[480px]">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="text-left px-4 py-2.5 text-slate-500 font-semibold">Order ID</th>
+                    <th class="text-left px-4 py-2.5 text-slate-500 font-semibold">ग्राहक</th>
+                    <th class="text-left px-4 py-2.5 text-slate-500 font-semibold">सर्विस</th>
+                    <th class="text-left px-4 py-2.5 text-slate-500 font-semibold">राशि</th>
+                    <th class="text-left px-4 py-2.5 text-slate-500 font-semibold">स्टेटस</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-orders-body" class="divide-y divide-slate-50">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Quick Actions + Today's Service Split -->
+          <div class="space-y-4">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-2">
+              <h3 class="font-bold text-sm text-slate-800 mb-3">त्वरित कार्य</h3>
+              <button onclick="showPanel('panel-orders')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl flex items-center gap-2 px-3 transition">
+                <i class="fa-solid fa-bell text-amber-400"></i> ऑर्डर अप्रूव करें
+              </button>
+              <button onclick="showPanel('panel-mechanics')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2.5 rounded-xl flex items-center gap-2 px-3 transition">
+                <i class="fa-solid fa-user-gear"></i> मैकेनिक स्टेटस
+              </button>
+              <button onclick="showPanel('panel-inventory')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2.5 rounded-xl flex items-center gap-2 px-3 transition">
+                <i class="fa-solid fa-boxes-stacked"></i> स्टॉक चेक करें
+              </button>
+            </div>
+            <!-- Service Split -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+              <h3 class="font-bold text-sm text-slate-800 mb-3">सर्विस ब्रेकडाउन</h3>
+              <div class="space-y-2">
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-slate-600">पंचर रिपेयर</span><span class="font-bold">62%</span></div>
+                  <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-amber-500 h-2 rounded-full" style="width:62%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-slate-600">टायर सेल</span><span class="font-bold">20%</span></div>
+                  <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-emerald-500 h-2 rounded-full" style="width:20%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1"><span class="text-slate-600">स्टेफनी / एयर</span><span class="font-bold">18%</span></div>
+                  <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-blue-400 h-2 rounded-full" style="width:18%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 2. ORDERS PANEL ===== -->
+      <div id="panel-orders" class="hidden space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-2 flex-wrap items-center">
+            <button onclick="filterOrders('live')" id="filter-live" class="order-filter bg-slate-900 text-white text-xs px-3.5 py-1.5 rounded-full font-bold shadow-sm flex items-center gap-1.5">
+              <span>⚡ लाइव ऑर्डर्स</span>
+              <span id="live-count-badge" class="bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full text-[10px] font-black">0</span>
+            </button>
+            <button onclick="filterOrders('pending')" id="filter-pending" class="order-filter bg-white border border-slate-300 text-slate-600 text-xs px-3 py-1.5 rounded-full font-semibold">⏳ पेंडिंग</button>
+            <button onclick="filterOrders('active')" id="filter-active" class="order-filter bg-white border border-slate-300 text-slate-600 text-xs px-3 py-1.5 rounded-full font-semibold">🚐 एक्टिव</button>
+            <button onclick="filterOrders('done')" id="filter-done" class="order-filter bg-white border border-slate-300 text-slate-600 text-xs px-3 py-1.5 rounded-full font-semibold">✅ पूरे</button>
+            <button onclick="filterOrders('cancelled')" id="filter-cancelled" class="order-filter bg-white border border-red-300 text-red-600 hover:bg-red-50 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
+              <span>🚫 रद्द बुकिंग</span>
+              <span id="cancelled-count-badge" class="bg-red-500 text-white px-1.5 py-0.2 rounded-full text-[10px] font-black">0</span>
+            </button>
+            <button onclick="filterOrders('all')" id="filter-all" class="order-filter bg-white border border-slate-300 text-slate-600 text-xs px-3 py-1.5 rounded-full font-semibold">📋 सभी हिस्ट्री</button>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500 font-medium">कुल: <strong id="order-count-label">0 ऑर्डर</strong></span>
+            <button onclick="clearAllOrders()" class="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs px-3 py-1.5 rounded-full transition">
+              <i class="fa-solid fa-trash-can text-[10px]"></i> सब क्लियर करें
+            </button>
+          </div>
+        </div>
+
+        <div id="orders-list" class="space-y-3"></div>
+      </div>
+
+    <!-- Live Location Map Panel with customer pins -->
+    <div id="panel-map" class="hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              लाइव वैन + ग्राहक ट्रैकर
+            </h3>
+            <div class="flex items-center gap-2">
+              <span id="map-customer-count" class="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">0 ग्राहक</span>
+              <span class="text-xs text-slate-500">लाइव लोकेशन</span>
+            </div>
+          </div>
+
+          <!-- Live Order Alerts -->
+          <div id="live-alert-bar" class="hidden px-4 py-2.5 bg-emerald-50 border-b border-emerald-200 items-center gap-3 text-xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0"></span>
+            <span id="live-alert-text" class="font-bold text-emerald-800 flex-1"></span>
+            <button onclick="document.getElementById('live-alert-bar').classList.add('hidden'); document.getElementById('live-alert-bar').classList.remove('flex')" class="text-emerald-600 hover:text-emerald-800 shrink-0">✕</button>
+          </div>
+
+          <!-- Map Area -->
+          <div class="h-96 bg-slate-200 road-grid relative overflow-hidden flex items-center justify-center" id="map-area">
+            <!-- Roads -->
+            <div class="absolute w-full h-10 bg-slate-400/70 rotate-[-8deg] border-y border-dashed border-white/60 flex items-center justify-center">
+              <span class="text-[9px] text-white/80 font-mono tracking-widest">NH-48 DELHI–MEERUT EXPRESSWAY</span>
+            </div>
+            <div class="absolute h-full w-8 bg-slate-400/50 rotate-[35deg]"></div>
+
+            <!-- Customer pins will be dynamically injected here -->
+            <div id="customer-pins-container"></div>
+
+            <!-- Animated Van (Mechanic) -->
+            <div id="admin-van" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 text-center van-marker z-20 transition-all duration-1000 cursor-pointer" onclick="moveVanOnMap()">
+              <div id="admin-van-badge" class="bg-slate-900 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-400 mb-1 flex items-center justify-center gap-1 whitespace-nowrap shadow-md">
+                <span id="admin-van-pulse" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block"></span>
+                <span id="admin-van-label">रमेश • HP64-BT-9821</span>
+              </div>
+              <div id="admin-van-icon-box" class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shadow-xl border-2 border-white mx-auto relative hover:scale-110 transition-transform">
+                <i class="fa-solid fa-truck-pickup"></i>
+              </div>
+            </div>
+
+            <!-- Map Legend -->
+            <div class="absolute bottom-3 left-3 bg-white/90 rounded-xl p-2 text-[10px] space-y-1 border border-slate-200 z-10">
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> ग्राहक (पेंडिंग)</div>
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> ग्राहक (एक्टिव)</div>
+              <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> मैकेनिक वैन</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="absolute bottom-3 right-3 flex gap-2 z-10">
+              <button onclick="moveVanOnMap()" class="bg-slate-900/90 text-white text-xs px-3 py-1.5 rounded-lg font-bold border border-slate-700 hover:bg-slate-800">
+                <i class="fa-solid fa-play"></i> वैन हिलाएं
+              </button>
+            </div>
+          </div>
+
+          <!-- GPS Coordinates Panel -->
+          <div id="gps-coords-bar" class="hidden px-5 py-3 bg-slate-900 text-white text-xs flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-location-crosshairs text-amber-400"></i>
+              <span class="text-slate-400">Last Customer GPS:</span>
+              <span id="gps-lat" class="font-mono font-bold text-amber-300">—</span>
+              <span class="text-slate-500">,</span>
+              <span id="gps-lng" class="font-mono font-bold text-amber-300">—</span>
+            </div>
+            <a id="gps-maps-link" href="#" target="_blank" class="flex items-center gap-1 text-blue-400 hover:text-blue-300 font-semibold">
+              <i class="fa-solid fa-map"></i> Google Maps में खोलें
+            </a>
+            <span id="gps-address" class="text-slate-400 italic truncate max-w-xs"></span>
+          </div>
+
+          <!-- ── Live Location Card (latest customer booking) ── -->
+          <div id="live-location-card" class="hidden mx-5 my-4 bg-white border-2 border-red-200 rounded-2xl p-4 shadow-md">
+            <!-- filled by updateLiveLocationCard() -->
+          </div>
+
+          <!-- Van Info Bar -->
+          <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-4 text-xs flex-wrap">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-slate-900 font-black"><i class="fa-solid fa-truck-pickup"></i></div>
+              <div>
+                <p class="font-bold text-slate-900">रमेश मिस्त्री</p>
+                <p class="text-slate-500">HP64-BT-9821 • <span class="text-emerald-600 font-semibold">ऑन ड्यूटी</span></p>
+              </div>
+            </div>
+            <div class="border-l border-slate-200 pl-4">
+              <p class="text-slate-500">लाइव ऑर्डर</p>
+              <p id="map-live-orders" class="font-bold text-slate-900">0 पेंडिंग</p>
+            </div>
+            <div class="border-l border-slate-200 pl-4">
+              <p class="text-slate-500">आज की कमाई</p>
+              <p class="font-bold text-emerald-700">₹4,320</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 4. MECHANICS PANEL ===== -->
+      <div id="panel-mechanics" class="hidden space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          <!-- Mechanic 1 -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-slate-800 text-amber-400 flex items-center justify-center text-xl font-black">
+                  <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-sm text-slate-900">रमेश मिस्त्री</h3>
+                  <p class="text-[10px] text-slate-500">वरिष्ठ टेक्नीशियन</p>
+                </div>
+              </div>
+              <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> फ्री
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-slate-50 rounded-lg p-2">
+                <p class="text-slate-400">आज ऑर्डर</p>
+                <p class="font-black text-slate-900">12</p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-2">
+                <p class="text-slate-400">रेटिंग</p>
+                <p class="font-black text-amber-700">4.9 ★</p>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600"><i class="fa-solid fa-truck-pickup text-amber-500 mr-1"></i> HP64-BT-9821</div>
+            <div class="flex gap-2">
+              <button onclick="toggleMechanicStatus(this, 'free')" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">व्यस्त करें</button>
+              <a href="tel:9876543210" class="flex-1 bg-emerald-600 text-white font-bold py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
+                <i class="fa-solid fa-phone text-[10px]"></i> कॉल
+              </a>
+            </div>
+          </div>
+
+          <!-- Mechanic 2 -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-slate-700 text-amber-300 flex items-center justify-center text-xl font-black">
+                  <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-sm text-slate-900">सुरेश कुमार</h3>
+                  <p class="text-[10px] text-slate-500">टेक्नीशियन</p>
+                </div>
+              </div>
+              <span class="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> व्यस्त
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-slate-50 rounded-lg p-2">
+                <p class="text-slate-400">आज ऑर्डर</p>
+                <p class="font-black text-slate-900">9</p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-2">
+                <p class="text-slate-400">रेटिंग</p>
+                <p class="font-black text-amber-700">4.7 ★</p>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600"><i class="fa-solid fa-truck-pickup text-amber-500 mr-1"></i> DL3C-AE-7740</div>
+            <div class="flex gap-2">
+              <button onclick="toggleMechanicStatus(this, 'busy')" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-1.5 rounded-lg text-xs transition">फ्री करें</button>
+              <a href="tel:9876543211" class="flex-1 bg-emerald-600 text-white font-bold py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
+                <i class="fa-solid fa-phone text-[10px]"></i> कॉल
+              </a>
+            </div>
+          </div>
+
+          <!-- Add New Mechanic Card -->
+          <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-slate-100 transition" onclick="showToast('नया मैकेनिक जोड़ने की सुविधा जल्द आएगी!')">
+            <div class="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xl">
+              <i class="fa-solid fa-plus"></i>
+            </div>
+            <p class="text-xs text-slate-500 font-semibold text-center">नया मैकेनिक जोड़ें</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 5. CALL AD BANNER SETTINGS PANEL ===== -->
+      <div id="panel-banner" class="hidden space-y-5">
+        <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-emerald-500/30 shadow-xl">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30 shrink-0">
+                <i class="fa-solid fa-phone-volume animate-pulse"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-black text-base text-white">कॉल विज्ञापन बैनर सेटिंग्स (Customer App Call Banner)</h3>
+                  <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">Live Banner</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">ग्राहक ऐप पर दिखने वाला ऑन-ड्यूटी मैकेनिक का फ़ोन नंबर और विज्ञापन यहीं से बदलें</p>
+              </div>
+            </div>
+            <button onclick="saveAdminMechanicContact()"
+              class="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30">
+              <i class="fa-solid fa-floppy-disk"></i> सेव करें व लाइव अपडेट करें
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <!-- Inputs -->
+            <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">मैकेनिक का नाम</label>
+                <input id="admin-banner-mech-name" type="text" value="SANTOSH (ऑन-ड्यूटी)"
+                  oninput="updateAdminBannerPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-bold focus:outline-none focus:border-emerald-400 text-sm">
+              </div>
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">📞 कॉलिंग फ़ोन नंबर (क्लिक करने पर डायल होगा)</label>
+                <input id="admin-banner-mech-phone" type="tel" value="9876543210"
+                  oninput="updateAdminBannerPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-emerald-400 font-mono font-black text-sm tracking-wider focus:outline-none focus:border-emerald-400">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">टैगलाइन / विज्ञापन संदेश (ग्राहक को दिखेगा)</label>
+                <input id="admin-banner-mech-tagline" type="text" value="सीधे कॉल करें • 10-15 मिनट में ऑन-साइट पहुँचेगा"
+                  oninput="updateAdminBannerPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-300 text-xs sm:text-sm focus:outline-none focus:border-emerald-400">
+              </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+              <p class="text-[11px] text-slate-400 font-bold mb-3 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-eye text-emerald-400"></i> ग्राहक स्क्रीन पर ऐसा दिखेगा:
+              </p>
+              <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-xl p-3 shadow-md flex items-center justify-between gap-3 border border-emerald-400/40">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-phone-volume text-amber-300 text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <p id="admin-preview-name" class="font-black text-xs leading-tight truncate">रमेश मिस्त्री (ऑन-ड्यूटी)</p>
+                    <p id="admin-preview-tagline" class="text-[10px] text-emerald-100 leading-tight truncate mt-0.5">सीधे कॉल करें • 10-15 मिनट में पहुँचेगा</p>
+                  </div>
+                </div>
+                <div class="bg-amber-400 text-slate-950 font-black text-xs px-2.5 py-1.5 rounded-lg shrink-0 flex items-center gap-1">
+                  <i class="fa-solid fa-phone text-[10px]"></i>
+                  <span id="admin-preview-phone">9876543210</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-emerald-400/90 mt-3 text-center">ग्राहक ऐप में इस बैनर पर टैप करते ही सीधे कॉल मिल जाएगी</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 5b. PERMANENT SHOP / WORKSHOP LOCATION PANEL ===== -->
+      <div id="panel-shop" class="hidden space-y-5">
+        <div class="bg-gradient-to-r from-blue-950 via-slate-900 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-blue-500/30 shadow-xl">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl border border-blue-500/30 shrink-0">
+                <i class="fa-solid fa-shop"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-black text-base text-white">मैकेनिक स्थायी दुकान / वर्कशॉप लोकेशन (Permanent Shop Location)</h3>
+                  <span class="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold">App Map Pin</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">ग्राहक ऐप के मैप पर आपकी स्थायी दुकान का पता, पिन और गूगल मैप्स दिशा-निर्देश यहीं से अपडेट होंगे</p>
+              </div>
+            </div>
+            <button onclick="saveAdminShopLocation()"
+              class="w-full md:w-auto bg-blue-500 hover:bg-blue-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
+              <i class="fa-solid fa-floppy-disk"></i> दुकान लोकेशन सेव करें
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <!-- Inputs -->
+            <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">🏪 दुकान / वर्कशॉप का नाम</label>
+                <input id="admin-shop-name" type="text" value="रमेश टायर & पंचर वर्क्स (मेन वर्कशॉप)"
+                  oninput="updateAdminShopPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-bold focus:outline-none focus:border-blue-400 text-sm">
+              </div>
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">📞 दुकान का फ़ोन नंबर</label>
+                <input id="admin-shop-phone" type="tel" value="9876543210"
+                  oninput="updateAdminShopPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-blue-400 font-mono font-black text-sm tracking-wider focus:outline-none focus:border-blue-400">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">📍 पूरा पता (Full Shop Address)</label>
+                <input id="admin-shop-address" type="text" value="शॉप नंबर 4, नियर HP पेट्रोल पंप, NH-48 हाईवे, बिलासपुर (HP)"
+                  oninput="updateAdminShopPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-200 text-xs sm:text-sm focus:outline-none focus:border-blue-400">
+              </div>
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">🚩 मुख्य लैंडमार्क (Landmark)</label>
+                <input id="admin-shop-landmark" type="text" value="HP पेट्रोल पंप के सामने, NH-48"
+                  oninput="updateAdminShopPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-300 text-xs sm:text-sm focus:outline-none focus:border-blue-400">
+              </div>
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">⏰ खुलने का समय (Timings)</label>
+                <input id="admin-shop-timings" type="text" value="24×7 खुला है (Always Open)"
+                  oninput="updateAdminShopPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-amber-400 font-bold text-xs sm:text-sm focus:outline-none focus:border-blue-400">
+              </div>
+              <div>
+                <label class="text-xs font-bold text-slate-300 block mb-1.5">📏 अनुमानित दूरी (KM)</label>
+                <input id="admin-shop-distance" type="number" step="0.1" value="2.1"
+                  oninput="updateAdminShopPreview()"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-bold text-xs sm:text-sm focus:outline-none focus:border-blue-400">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="text-xs font-bold text-slate-300 block mb-1.5 flex items-center justify-between">
+                  <span>🌐 GPS निर्देशांक (Lat, Lng)</span>
+                  <button type="button" onclick="detectAdminGPSForShop()" class="text-xs text-blue-400 hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-crosshairs"></i> वर्तमान GPS लें
+                  </button>
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                  <input id="admin-shop-lat" type="number" step="0.0001" value="31.3985" placeholder="Latitude"
+                    oninput="updateAdminShopPreview()"
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-300 text-xs font-mono focus:outline-none focus:border-blue-400">
+                  <input id="admin-shop-lng" type="number" step="0.0001" value="76.8240" placeholder="Longitude"
+                    oninput="updateAdminShopPreview()"
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-300 text-xs font-mono focus:outline-none focus:border-blue-400">
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+              <p class="text-[11px] text-slate-400 font-bold mb-3 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-eye text-blue-400"></i> ग्राहक ऐप में दुकान कार्ड का प्रीव्यू:
+              </p>
+              <div class="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-xl p-3.5 shadow-md border border-blue-500/40 space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-500 text-slate-950 flex items-center justify-center font-black text-sm shrink-0">
+                      <i class="fa-solid fa-shop"></i>
+                    </div>
+                    <div>
+                      <p id="admin-shop-preview-name" class="font-extrabold text-sm text-white leading-tight">रमेश टायर & पंचर वर्क्स</p>
+                      <p class="text-[11px] text-blue-300 font-medium flex items-center gap-1 mt-0.5">
+                        <i class="fa-solid fa-clock text-[10px]"></i>
+                        <span id="admin-shop-preview-timings">24×7 खुला है</span>
+                      </p>
+                    </div>
+                  </div>
+                  <span id="admin-shop-preview-dist" class="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                    2.1 KM दूर
+                  </span>
+                </div>
+                <div class="text-[11px] text-slate-300 bg-slate-900/90 rounded-lg p-2.5 border border-slate-800 space-y-1.5">
+                  <p class="flex items-start gap-1.5">
+                    <i class="fa-solid fa-location-dot text-red-400 text-xs mt-0.5 shrink-0"></i>
+                    <span id="admin-shop-preview-address" class="line-clamp-2">शॉप नंबर 4, नियर HP पेट्रोल पंप, NH-48 हाईवे, बिलासपुर (HP)</span>
+                  </p>
+                  <p class="text-[10px] text-slate-400 flex items-center gap-1">
+                    <i class="fa-solid fa-flag text-amber-400 text-[10px]"></i>
+                    <span id="admin-shop-preview-landmark">लैंडमार्क: HP पेट्रोल पंप के सामने</span>
+                  </p>
+                </div>
+                <div class="flex gap-2 pt-1">
+                  <div class="flex-1 bg-emerald-600 text-white text-xs font-bold py-2 rounded-lg text-center flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-phone text-[10px]"></i>
+                    <span id="admin-shop-preview-phone">9876543210</span>
+                  </div>
+                  <div class="flex-1 bg-blue-600 text-white text-xs font-bold py-2 rounded-lg text-center flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-diamond-turn-right text-[10px]"></i> दिशा-निर्देश
+                  </div>
+                </div>
+              </div>
+              <p class="text-[11px] text-blue-400/80 mt-3 text-center">ग्राहक ऐप में मैप पर "दुकान" टैब दबाने पर यह कार्ड और पिन दिखेगा</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 6. RATE MANAGEMENT PANEL ===== -->
+      <div id="panel-rates" class="hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h3 class="font-bold text-sm text-slate-800">विज़िट / दूरी चार्ज</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">बेस विज़िट चार्ज (₹)</label>
+                <input type="number" id="rate-base" value="150" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">फ्री दूरी (KM)</label>
+                <input type="number" id="rate-free-km" value="2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">प्रति KM रेट (₹)</label>
+                <input type="number" id="rate-per-km" value="15" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">VIP सुपरफास्ट चार्ज (₹)</label>
+                <input type="number" id="rate-vip" value="150" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">नाइट चार्ज 10PM-6AM (₹)</label>
+                <input type="number" id="rate-night" value="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h3 class="font-bold text-sm text-slate-800">सर्विस चार्ज</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">बाइक पंचर (₹)</label>
+                <input type="number" value="60" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">कार/SUV पंचर (₹)</label>
+                <input type="number" value="100" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">ट्यूब पंचर (₹)</label>
+                <input type="number" value="120" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">स्टेफनी चेंज (₹)</label>
+                <input type="number" value="150" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-semibold block mb-1">एयर / नाइट्रोजन (₹)</label>
+                <input type="number" value="50" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400">
+              </div>
+            </div>
+          </div>
+        </div>
+        <button onclick="showToast('✅ रेट सफलतापूर्वक सेव हो गए!')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-xl text-sm transition">
+          <i class="fa-solid fa-floppy-disk mr-2"></i> रेट सेव करें (Save Rates)
+        </button>
+      </div>
+
+      <!-- ===== 6. INVENTORY PANEL ===== -->
+      <div id="panel-inventory" class="hidden space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm text-slate-800">वैन में मौजूद टायर स्टॉक</h3>
+          <button onclick="showToast('स्टॉक अपडेट सेव हो गया!')" class="bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-emerald-700 transition">
+            <i class="fa-solid fa-floppy-disk mr-1"></i> स्टॉक सेव करें
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-xs min-w-[560px]">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-5 py-3 text-slate-500 font-semibold">टायर का नाम</th>
+                <th class="text-left px-5 py-3 text-slate-500 font-semibold">साइज़</th>
+                <th class="text-left px-5 py-3 text-slate-500 font-semibold">प्रकार</th>
+                <th class="text-left px-5 py-3 text-slate-500 font-semibold">कीमत (₹)</th>
+                <th class="text-left px-5 py-3 text-slate-500 font-semibold">स्टॉक</th>
+                <th class="text-left px-5 py-3 text-slate-500 font-semibold">एक्शन</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr class="hover:bg-slate-50">
+                <td class="px-5 py-3 font-bold text-slate-900">MRF ZVTS Tubeless</td>
+                <td class="px-5 py-3 text-slate-600">165/80 R14</td>
+                <td class="px-5 py-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">नया</span></td>
+                <td class="px-5 py-3 font-bold">₹3,250</td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <button onclick="adjustStock(this,-1)" class="w-6 h-6 bg-slate-200 rounded text-slate-700 font-bold hover:bg-slate-300">-</button>
+                    <span class="stock-val font-black text-slate-900">2</span>
+                    <button onclick="adjustStock(this,1)" class="w-6 h-6 bg-amber-500 rounded text-slate-900 font-bold hover:bg-amber-400">+</button>
+                  </div>
+                </td>
+                <td class="px-5 py-3"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">कम स्टॉक</span></td>
+              </tr>
+              <tr class="hover:bg-slate-50">
+                <td class="px-5 py-3 font-bold text-slate-900">CEAT Gripp X3</td>
+                <td class="px-5 py-3 text-slate-600">90/90-12</td>
+                <td class="px-5 py-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">नया</span></td>
+                <td class="px-5 py-3 font-bold">₹1,450</td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <button onclick="adjustStock(this,-1)" class="w-6 h-6 bg-slate-200 rounded text-slate-700 font-bold hover:bg-slate-300">-</button>
+                    <span class="stock-val font-black text-slate-900">3</span>
+                    <button onclick="adjustStock(this,1)" class="w-6 h-6 bg-amber-500 rounded text-slate-900 font-bold hover:bg-amber-400">+</button>
+                  </div>
+                </td>
+                <td class="px-5 py-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">उपलब्ध</span></td>
+              </tr>
+              <tr class="hover:bg-slate-50">
+                <td class="px-5 py-3 font-bold text-slate-900">सेकंड-हैंड टायर (R13/R14)</td>
+                <td class="px-5 py-3 text-slate-600">R13 / R14</td>
+                <td class="px-5 py-3"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">पुराना</span></td>
+                <td class="px-5 py-3 font-bold">₹999</td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <button onclick="adjustStock(this,-1)" class="w-6 h-6 bg-slate-200 rounded text-slate-700 font-bold hover:bg-slate-300">-</button>
+                    <span class="stock-val font-black text-slate-900">5</span>
+                    <button onclick="adjustStock(this,1)" class="w-6 h-6 bg-amber-500 rounded text-slate-900 font-bold hover:bg-amber-400">+</button>
+                  </div>
+                </td>
+                <td class="px-5 py-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">उपलब्ध</span></td>
+              </tr>
+              <tr class="hover:bg-slate-50">
+                <td class="px-5 py-3 font-bold text-slate-900">TVS ट्यूब (Activa)</td>
+                <td class="px-5 py-3 text-slate-600">90/90-12</td>
+                <td class="px-5 py-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">एक्सेसरी</span></td>
+                <td class="px-5 py-3 font-bold">₹380</td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <button onclick="adjustStock(this,-1)" class="w-6 h-6 bg-slate-200 rounded text-slate-700 font-bold hover:bg-slate-300">-</button>
+                    <span class="stock-val font-black text-slate-900">8</span>
+                    <button onclick="adjustStock(this,1)" class="w-6 h-6 bg-amber-500 rounded text-slate-900 font-bold hover:bg-amber-400">+</button>
+                  </div>
+                </td>
+                <td class="px-5 py-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">उपलब्ध</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-2"></div>
+
+  <script>
+    // ---- Data ----
+    let orders = [
+      { id: 'PW-1041', customer: 'अमित शर्मा', phone: '98765-XXXXX', service: 'पंचर रिपेयर (कार)', distance: 4.5, amount: 317, status: 'pending', time: '13:38', vip: false },
+      { id: 'PW-1040', customer: 'प्रिया गुप्ता', phone: '99012-XXXXX', service: 'एयर रीफिल (बाइक)', distance: 2.1, amount: 182, status: 'active', time: '13:22', vip: false },
+      { id: 'PW-1039', customer: 'राजेश वर्मा', phone: '91234-XXXXX', service: 'स्टेफनी चेंज (SUV)', distance: 6.3, amount: 526, status: 'pending', time: '13:15', vip: true },
+      { id: 'PW-1038', customer: 'सुनीता पाल', phone: '90000-XXXXX', service: 'MRF टायर फिटिंग', distance: 3.0, amount: 3445, status: 'done', time: '12:50', vip: false },
+      { id: 'PW-1037', customer: 'मोहन लाल', phone: '88888-XXXXX', service: 'ट्यूब पंचर (बाइक)', distance: 1.8, amount: 270, status: 'done', time: '12:10', vip: false },
+      { id: 'PW-1036', customer: 'दीपक तिवारी', phone: '77777-XXXXX', service: 'पंचर रिपेयर (बाइक)', distance: 5.0, amount: 255, status: 'pending', time: '11:45', vip: false },
+    ];
+
+    let currentFilter = 'live';
+    let vanPositions = [
+      { bottom: '24px', left: '50%' },
+      { bottom: '80px', left: '45%' },
+      { bottom: '120px', left: '55%' },
+      { bottom: '60px', left: '40%' },
+    ];
+    let vanPosIdx = 0;
+
+    const SERVER = (function() {
+      if (typeof window !== 'undefined' && window.location) {
+        if (window.location.protocol.startsWith('file')) return 'http://192.168.1.4:3002';
+        if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          return `http://${window.location.hostname}:3002`;
+        }
+      }
+      return 'http://localhost:3002';
+    })();
+
+    // ── SSE: Connect to Live Server ────────────────────────────────────────
+    function connectSSE() {
+      const sse = new EventSource(`${SERVER}/api/events`);
+
+      sse.addEventListener('connected', () => {
+        console.log('[SSE] Connected to PunctureWala Live Server');
+        showToast('🟢 Live Server से जुड़ गए! ग्राहक बुकिंग अब रियल-टाइम दिखेगी।');
+      });
+
+      // 🔔 New order received from Customer App
+      sse.addEventListener('new-order', e => {
+        const order = JSON.parse(e.data);
+
+        // Add to orders array if not duplicate
+        if (!orders.find(o => o.id === order.id)) {
+          orders.unshift(order);
+        }
+
+        renderRecentOrders();
+        renderOrdersList();
+        updateKPIs();
+
+        // Update badge
+        const badge = document.getElementById('order-badge');
+        const pending = orders.filter(o => o.status === 'pending').length;
+        badge.innerText = pending;
+
+        // 🔴 Big toast notification
+        const modelStr = order.vehicleModel ? ` ${order.vehicleModel}` : '';
+        const vehTxt = order.vehicleNumber ? ` [${(order.vehicle||'').toUpperCase()}${modelStr}: ${order.vehicleNumber}]` : '';
+        showToast(`🔔 नई बुकिंग! ${order.customer}${vehTxt} — ${order.service} — ₹${order.amount}`);
+
+        // ── Show live alert bar in map panel ──
+        const alertBar  = document.getElementById('live-alert-bar');
+        const alertText = document.getElementById('live-alert-text');
+        if (alertBar && alertText) {
+          const vTag = order.vehicleModel ? `${(order.vehicle||'').toUpperCase()} ${order.vehicleModel} (${order.vehicleNumber||'N/A'})` : (order.vehicleNumber || 'नंबर N/A');
+          alertText.innerText = `🔔 ${order.id} | ${order.customer} | ${order.service} | 🚗 ${vTag} | ₹${order.amount} | ${order.address}`;
+          alertBar.classList.remove('hidden');
+          alertBar.classList.add('flex');
+        }
+
+        // ── Auto switch to Map panel ──
+        showPanel('panel-map');
+
+        // ── Drop pin on map ──
+        dropCustomerPin(order);
+
+        // ── Show GPS bar if location available ──
+        if (order.lat && order.lng) {
+          showGpsBar(order);
+        }
+      });
+
+      // All orders on reconnect
+      sse.addEventListener('all-orders', e => {
+        const serverOrders = JSON.parse(e.data);
+        serverOrders.forEach(o => {
+          const idx = orders.findIndex(x => x.id === o.id);
+          if (idx !== -1) {
+            orders[idx] = o;
+          } else {
+            orders.push(o);
+          }
+        });
+        orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        renderRecentOrders();
+        renderOrdersList();
+        updateKPIs();
+
+        // Re-drop all pins
+        orders.filter(o => o.lat).forEach(dropCustomerPin);
+      });
+
+      // Orders cleared by admin (another tab/device)
+      sse.addEventListener('orders-cleared', () => {
+        orders = [];
+        renderOrdersList();
+        renderRecentOrders();
+        updateKPIs();
+        const badge = document.getElementById('order-badge');
+        badge.innerText = 0;
+        badge.style.display = 'none';
+        showToast('🗑️ सभी बुकिंग क्लियर कर दी गईं।');
+      });
+
+      // 🔄 Real-time Order Updated (Status / Cancellation sync)
+      sse.addEventListener('order-updated', e => {
+        try {
+          const updated = JSON.parse(e.data);
+          const idx = orders.findIndex(o => o.id === updated.id);
+          if (idx !== -1) {
+            orders[idx] = updated;
+          } else {
+            orders.unshift(updated);
+          }
+          dropCustomerPin(updated);
+          if (activeLiveCardOrderId === updated.id) {
+            updateLiveLocationCard(updated);
+          }
+          renderRecentOrders();
+          renderOrdersList();
+          updateKPIs();
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      // 🔑 Real-time OTP Verified
+      sse.addEventListener('otp-verified', e => {
+        try {
+          const data = JSON.parse(e.data);
+          const order = orders.find(o => o.id === data.orderId);
+          if (order) {
+            order.status = 'active';
+            order.otpVerified = true;
+            if (activeLiveCardOrderId === order.id) {
+              updateLiveLocationCard(order);
+            }
+            dropCustomerPin(order);
+            renderOrdersList();
+            renderRecentOrders();
+            updateKPIs();
+          }
+          showToast(`✅ OTP सत्यापित: बुकिंग ${data.orderId} एक्टिव हो गई!`);
+        } catch(err) {}
+      });
+
+      // ⭐ Customer Feedback Received
+      sse.addEventListener('customer-feedback', e => {
+        try {
+          const fb = JSON.parse(e.data);
+          const stars = '⭐'.repeat(fb.rating || 5);
+          const tagTxt = (fb.tags && fb.tags.length) ? ` [${fb.tags.join(', ')}]` : '';
+          const cmtTxt = fb.comment ? `\n"${fb.comment}"` : '';
+          showToast(`🌟 ग्राहक फीडबैक (${fb.orderId}): ${stars} (${fb.customer})${tagTxt}${cmtTxt}`);
+        } catch(err){}
+      });
+
+      // 📞 Direct Call Banner Updated
+      sse.addEventListener('mechanic-contact-updated', e => {
+        try {
+          const contact = JSON.parse(e.data);
+          const nameInp = document.getElementById('admin-banner-mech-name');
+          const phoneInp = document.getElementById('admin-banner-mech-phone');
+          const tagInp = document.getElementById('admin-banner-mech-tagline');
+          if (nameInp && contact.name) nameInp.value = contact.name;
+          if (phoneInp && contact.phone) phoneInp.value = contact.phone;
+          if (tagInp && contact.tagline) tagInp.value = contact.tagline;
+          updateAdminBannerPreview();
+        } catch(err){}
+      });
+
+      // 🏪 Shop Location Updated
+      sse.addEventListener('shop-location-updated', e => {
+        try {
+          const shop = JSON.parse(e.data);
+          populateAdminShopFields(shop);
+          updateAdminShopPreview();
+        } catch(err){}
+      });
+
+      sse.onerror = () => {
+        console.warn('[SSE] Server offline — will retry');
+      };
+    }
+
+    // ── Drop a red pin for customer on simulated map ──────────────────────
+    const pinPositions = [
+      { top: '14%',  left: '12%'  },
+      { top: '58%',  right: '10%' },
+      { top: '22%',  right: '22%' },
+      { top: '68%',  left: '18%'  },
+      { top: '38%',  left: '48%'  },
+      { top: '10%',  right: '40%' },
+    ];
+    let pinIdx = 0;
+
+    function dropCustomerPin(order) {
+      const container = document.getElementById('customer-pins-container');
+      if (!container) return;
+
+      // Remove old pin with same id
+      const old = document.getElementById(`pin-${order.id}`);
+      if (old) old.remove();
+
+      // If cancelled or done, remove pin from live map & clear alert bar if matching
+      if (order.status === 'cancelled' || order.status === 'done') {
+        const alertBar = document.getElementById('live-alert-bar');
+        const alertText = document.getElementById('live-alert-text');
+        if (alertText && alertText.innerText.includes(order.id) && alertBar) {
+          alertBar.classList.add('hidden');
+          alertBar.classList.remove('flex');
+        }
+        const count = container.querySelectorAll('[id^="pin-"]').length;
+        const el = document.getElementById('map-customer-count');
+        if (el) el.innerText = `${count} ग्राहक`;
+        syncVanPosition();
+        return;
+      }
+
+      const pos   = pinPositions[pinIdx % pinPositions.length];
+      pinIdx++;
+      const isActive = order.status === 'active';
+      const color = isActive ? 'bg-blue-600' : 'bg-red-500';
+      const ring  = isActive ? 'ring-blue-400' : 'ring-red-300';
+      const label = isActive ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> काम चालू` : 'पेंडिंग';
+
+      const pin = document.createElement('div');
+      pin.id = `pin-${order.id}`;
+      pin.dataset.pos = JSON.stringify(pos);
+      pin.className = 'absolute text-center z-10 transition-all duration-700 cursor-pointer hover:scale-110';
+      pin.title = `${order.customer} • ${order.service} (${isActive ? 'काम चालू है' : 'पेंडिंग'}) — क्लिक करके विवरण देखें`;
+      pin.onclick = () => updateLiveLocationCard(order);
+      Object.assign(pin.style, pos);
+
+      pin.innerHTML = `
+        <div class="${color} text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md mb-1 whitespace-nowrap shadow-lg">
+          ${order.id}
+        </div>
+        <div class="relative mx-auto w-fit">
+          <div class="w-8 h-8 ${color} rounded-full text-white flex items-center justify-center text-xs border-2 border-white shadow-xl ring-4 ${ring} ring-opacity-60">
+            <i class="fa-solid ${isActive ? 'fa-wrench' : 'fa-location-dot'}"></i>
+          </div>
+          <span class="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 border border-white rounded-full animate-ping"></span>
+        </div>
+        <div class="${color} text-white text-[8px] font-black px-1.5 py-0.5 rounded-full mt-1 whitespace-nowrap shadow flex items-center justify-center gap-1">${label}</div>
+      `;
+      container.appendChild(pin);
+
+      // Update counter badge
+      const count = container.querySelectorAll('[id^="pin-"]').length;
+      const el = document.getElementById('map-customer-count');
+      if (el) el.innerText = `${count} ग्राहक`;
+
+      // Update pending label in info bar
+      const liveOrders = document.getElementById('map-live-orders');
+      if (liveOrders) {
+        liveOrders.innerText = `${orders.filter(o => o.status === 'pending').length} पेंडिंग`;
+      }
+
+      // ── Update Live Location Card (new! always visible below map) ──
+      updateLiveLocationCard(order);
+
+      // 🛻 Sync van position to the active customer
+      syncVanPosition();
+    }
+
+    // ── Position Van at Active Customer Location (जिस ग्राहक के पास काम हो रहा है) ──
+    function syncVanPosition() {
+      const van = document.getElementById('admin-van');
+      const vanLabel = document.getElementById('admin-van-label');
+      const vanPulse = document.getElementById('admin-van-pulse');
+      if (!van) return;
+
+      // Find the active/on-site order (जिस ग्राहक के पास काम हो रहा है या पहुँचा है)
+      const activeOrder = orders.find(o => o.status === 'active' || o.status === 'arrived' || o.status === 'onway');
+
+      if (activeOrder) {
+        // Find pin of this active customer on the map
+        const pin = document.getElementById(`pin-${activeOrder.id}`);
+        let targetPos = null;
+
+        if (pin && pin.dataset.pos) {
+          try {
+            const p = JSON.parse(pin.dataset.pos);
+            targetPos = {};
+            if (p.top) {
+              const topVal = parseFloat(p.top);
+              targetPos.top = `${Math.max(4, topVal - 4)}%`;
+              targetPos.bottom = 'auto';
+            }
+            if (p.left) {
+              const leftVal = parseFloat(p.left);
+              targetPos.left = `${leftVal + 9}%`;
+              targetPos.right = 'auto';
+            } else if (p.right) {
+              const rightVal = parseFloat(p.right);
+              targetPos.right = `${rightVal + 11}%`;
+              targetPos.left = 'auto';
+            }
+          } catch(e){}
+        }
+
+        // Fallback offset near active pin (PW-1040 is pinIdx 1 -> top: 58%, right: 10%)
+        if (!targetPos) {
+          targetPos = { top: '54%', right: '21%', bottom: 'auto', left: 'auto' };
+        }
+
+        van.style.transition = 'all 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        van.style.top    = targetPos.top;
+        van.style.bottom = targetPos.bottom;
+        van.style.left   = targetPos.left;
+        van.style.right  = targetPos.right;
+
+        if (vanLabel) {
+          if (activeOrder.status === 'onway') {
+            vanLabel.innerHTML = `🚗 रास्ते में: ${activeOrder.customer} (${activeOrder.id})`;
+          } else if (activeOrder.status === 'arrived') {
+            vanLabel.innerHTML = `📍 पहुँच गए: ${activeOrder.customer} (OTP मांगें)`;
+          } else {
+            vanLabel.innerHTML = `🟢 ऑन-साइट: ${activeOrder.customer} (${activeOrder.id})`;
+          }
+        }
+        if (vanPulse) {
+          vanPulse.className = activeOrder.status === 'onway' ? 'w-2 h-2 rounded-full bg-purple-400 animate-ping inline-block' : 'w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block';
+        }
+        van.title = `वैन: ${activeOrder.customer} (${activeOrder.id}) — ${activeOrder.status}`;
+      } else {
+        // No active order -> Van patrols or stays on highway
+        const pos = vanPositions[vanPosIdx % vanPositions.length];
+        van.style.transition = 'all 0.8s ease';
+        van.style.top = 'auto';
+        van.style.right = 'auto';
+        van.style.bottom = pos.bottom;
+        van.style.left = pos.left;
+        if (vanLabel) {
+          vanLabel.innerHTML = `रमेश • HP64-BT-9821 (उपलब्ध)`;
+        }
+        if (vanPulse) {
+          vanPulse.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block';
+        }
+        van.title = 'मैकेनिक वैन (ऑन ड्यूटी • उपलब्ध)';
+      }
+    }
+
+    let activeLiveCardOrderId = null;
+
+    // ── Live Location Card (shows latest customer details + GPS link + Accept/Reject Action Buttons) ──────
+    function updateLiveLocationCard(order) {
+      let card = document.getElementById('live-location-card');
+      if (!card || !order) return;
+      activeLiveCardOrderId = order.id;
+
+      const mapsUrl = order.lat && order.lng
+        ? `https://www.google.com/maps?q=${order.lat},${order.lng}`
+        : '#';
+      const lat = order.lat ? order.lat.toFixed(5) : '—';
+      const lng = order.lng ? order.lng.toFixed(5) : '—';
+
+      const isPending = order.status === 'pending';
+      const isAccepted = order.status === 'accepted';
+      const isOnWay = order.status === 'onway';
+      const isArrived = order.status === 'arrived';
+      const isActive = order.status === 'active';
+      const isDone = order.status === 'done';
+      const isCancelled = order.status === 'cancelled';
+
+      const iconBg = isActive ? 'bg-emerald-600 ring-emerald-200' : isArrived ? 'bg-cyan-600 ring-cyan-200' : isOnWay ? 'bg-purple-600 ring-purple-200' : isAccepted ? 'bg-indigo-600 ring-indigo-200' : isDone ? 'bg-emerald-600 ring-emerald-200' : isCancelled ? 'bg-red-600 ring-red-200' : 'bg-amber-500 ring-amber-200';
+      const cardBorder = isActive ? 'border-emerald-400' : isArrived ? 'border-cyan-400' : isOnWay ? 'border-purple-300' : isAccepted ? 'border-indigo-300' : isCancelled ? 'border-red-300' : isDone ? 'border-emerald-300' : 'border-amber-400';
+
+      card.className = `mx-5 my-4 bg-white border-2 ${cardBorder} rounded-2xl p-4 shadow-lg transition-all animate-fade-in`;
+      card.classList.remove('hidden');
+
+      const vehStr = order.vehicleModel ? `${(order.vehicle||'गाड़ी').toUpperCase()} • ${order.vehicleModel}` : (order.vehicle || 'गाड़ी').toUpperCase();
+      const vehNumTag = order.vehicleNumber ? `<span class="bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded border border-amber-300 font-mono text-[10px] ml-1">${order.vehicleNumber}</span>` : '';
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl ${iconBg} text-white flex items-center justify-center text-lg shadow-lg shrink-0 ring-4">
+              <i class="fa-solid fa-location-dot"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="font-black text-sm text-slate-900">${order.customer}</p>
+                <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">${order.id}</span>
+                ${statusBadge(order.status)}
+              </div>
+              <p class="text-xs text-slate-700 font-semibold mt-0.5 flex items-center flex-wrap gap-1">
+                <i class="fa-solid fa-wrench text-amber-500 mr-0.5"></i>
+                <span>${order.service} (${vehStr})</span>
+                ${vehNumTag}
+                <span>•</span>
+                <span class="text-emerald-700 font-black">₹${order.amount}</span>
+              </p>
+              <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-map-pin text-red-500 mr-1"></i>${order.address || 'लोकेशन उपलब्ध'}</p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5 shrink-0">
+            <a href="${mapsUrl}" target="_blank"
+               class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition shadow">
+              <i class="fa-solid fa-map-location-dot"></i> Google Maps खोलें
+            </a>
+            <div class="text-[10px] text-slate-500 text-center font-mono">
+              ${lat}, ${lng}
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-3 border-t border-slate-200 grid grid-cols-3 gap-2 text-xs text-center">
+          <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
+            <p class="text-slate-400 text-[10px]">दूरी</p>
+            <p class="font-bold text-slate-900">${order.distanceKm || order.distance || '—'} KM</p>
+          </div>
+          <div class="bg-amber-50 rounded-xl p-2 border border-amber-100">
+            <p class="text-slate-400 text-[10px]">राशि</p>
+            <p class="font-bold text-amber-800">₹${order.amount}</p>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
+            <p class="text-slate-400 text-[10px]">समय</p>
+            <p class="font-bold text-slate-900">${order.bookedAt || order.time || 'अभी'}</p>
+          </div>
+        </div>
+
+        <!-- 🔑 Live Location Card OTP Verification Block (Only when Reached/Arrived at customer) -->
+        ${order.otpVerified ? `
+          <div class="mt-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-2.5 text-center text-xs font-bold text-emerald-800 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i> ✅ ग्राहक का OTP सत्यापित (Verified) है — सर्विस चालू
+          </div>
+        ` : isArrived ? `
+          <div class="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-3.5 shadow-md animate-bounce-short">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक से 4-अंकों का OTP पूछकर यहाँ डालें:
+              </span>
+              <span class="text-[10px] text-blue-700 bg-blue-100 font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                <i class="fa-solid fa-mobile-screen"></i> ग्राहक स्क्रीन पर OTP है
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <input id="live-card-otp-input-${order.id}" type="number" maxlength="4" placeholder="4-अंकों का OTP दर्ज करें"
+                onkeydown="if(event.key==='Enter') verifyLiveCardOtp('${order.id}')"
+                class="flex-1 bg-white border-2 border-blue-400 rounded-xl px-3 py-2 text-center font-black text-base tracking-widest text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-400 shadow-inner">
+              <button onclick="verifyLiveCardOtp('${order.id}')"
+                class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black px-4 py-2 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5 shadow-md shadow-blue-500/30 cursor-pointer">
+                <i class="fa-solid fa-circle-check"></i> OTP Verify करें
+              </button>
+            </div>
+            <p id="live-card-otp-error-${order.id}" class="text-red-600 text-[11px] font-bold mt-1.5 hidden"></p>
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-blue-200/60">
+              <span class="text-[10px] text-slate-500">यदि ग्राहक के फोन में नेटवर्क समस्या हो:</span>
+              <button onclick="updateOrderStatus('${order.id}', 'active')" class="text-[11px] text-blue-700 hover:text-blue-900 font-bold underline">
+                बिना OTP काम शुरू करें
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 🚀 Step-by-Step Progressive Action Buttons -->
+        <div class="mt-2.5 pt-2.5 border-t border-slate-200">
+          
+          <!-- 1. PENDING: Accept or Reject -->
+          ${isPending ? `
+            <div class="flex items-center gap-2">
+              <button onclick="updateOrderStatus('${order.id}', 'accepted')"
+                class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/30 transition transform active:scale-95">
+                <i class="fa-solid fa-circle-check text-base"></i> ✔ स्वीकार करें (Accept)
+              </button>
+              <button onclick="openCancelModal('${order.id}')"
+                class="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 transition">
+                <i class="fa-solid fa-ban"></i> रिजेक्ट
+              </button>
+              <a href="tel:${order.phone}"
+                class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl text-xs flex items-center justify-center gap-1 transition shadow-sm" title="ग्राहक को कॉल करें">
+                <i class="fa-solid fa-phone text-emerald-600"></i>
+              </a>
+            </div>
+          ` : ''}
+
+          <!-- 2. ACCEPTED: Start Ride -->
+          ${isAccepted ? `
+            <div class="flex items-center gap-2">
+              <button onclick="startRide('${order.id}')"
+                class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/30 transition transform active:scale-95">
+                <i class="fa-solid fa-car-side text-base"></i> 🚗 राइड शुरू करें (Start Ride)
+              </button>
+              <button onclick="openCancelModal('${order.id}')"
+                class="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 font-bold py-2.5 px-3.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 transition">
+                <i class="fa-solid fa-ban"></i> कैंसल
+              </button>
+              <a href="tel:${order.phone}"
+                class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3.5 rounded-xl text-xs flex items-center justify-center gap-1 transition shadow-sm">
+                <i class="fa-solid fa-phone text-emerald-600"></i>
+              </a>
+            </div>
+          ` : ''}
+
+          <!-- 3. ON THE WAY: Reached / Arrived -->
+          ${isOnWay ? `
+            <div class="flex items-center gap-2">
+              <button onclick="markCustomerArrived('${order.id}')"
+                class="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-500/30 transition transform active:scale-95 animate-pulse">
+                <i class="fa-solid fa-location-dot text-base"></i> 📍 ग्राहक के पास पहुँच गए (Reached)
+              </button>
+              <button onclick="openMapModal('${order.id}', ${order.lat || 0}, ${order.lng || 0}, '${order.customer}', '${order.phone}', '${(order.vehicle||'').toUpperCase()}', '${order.vehicleModel||''}', '${order.vehicleNumber||''}')"
+                class="bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                <i class="fa-solid fa-route"></i> मैप
+              </button>
+              <button onclick="openCancelModal('${order.id}')"
+                class="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 font-bold py-2.5 px-3 rounded-xl text-xs transition">
+                <i class="fa-solid fa-ban"></i>
+              </button>
+              <a href="tel:${order.phone}"
+                class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center transition">
+                <i class="fa-solid fa-phone text-emerald-600"></i>
+              </a>
+            </div>
+          ` : ''}
+
+          <!-- 4. ARRIVED: Waiting for OTP verification -->
+          ${isArrived ? `
+            <div class="flex items-center gap-2">
+              <button onclick="openCancelModal('${order.id}')"
+                class="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 font-bold py-2 px-3.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                <i class="fa-solid fa-ban"></i> कैंसल
+              </button>
+              <a href="tel:${order.phone}"
+                class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                <i class="fa-solid fa-phone text-emerald-600"></i> ग्राहक को कॉल करें
+              </a>
+            </div>
+          ` : ''}
+
+          <!-- 5. ACTIVE: Work In Progress → Done Button -->
+          ${isActive ? `
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <button onclick="updateOrderStatus('${order.id}', 'done')"
+                  class="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-500/30 transition transform active:scale-95">
+                  <i class="fa-solid fa-flag-checkered text-base"></i> 🏁 पूरा हुआ (Done)
+                </button>
+                <button onclick="openMapModal('${order.id}', ${order.lat || 0}, ${order.lng || 0}, '${order.customer}', '${order.phone}', '${(order.vehicle||'').toUpperCase()}', '${order.vehicleModel||''}', '${order.vehicleNumber||''}')"
+                  class="bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                  <i class="fa-solid fa-route"></i> मैप
+                </button>
+                <button onclick="openCancelModal('${order.id}')"
+                  class="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                  <i class="fa-solid fa-ban"></i> कैंसल
+                </button>
+                <a href="tel:${order.phone}"
+                  class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                  <i class="fa-solid fa-phone"></i>
+                </a>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 6. DONE -->
+          ${isDone ? `
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-center text-xs font-bold text-emerald-800 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> यह ऑर्डर सफलतापूर्वक पूरा हो चुका है
+            </div>
+          ` : ''}
+
+          <!-- 7. CANCELLED -->
+          ${isCancelled ? `
+            <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 text-xs text-red-800 flex items-center justify-between">
+              <span class="font-bold flex items-center gap-1"><i class="fa-solid fa-ban text-red-600"></i> ऑर्डर रद्द: ${order.cancelReason || 'एडमिन द्वारा'}</span>
+              <button onclick="updateOrderStatus('${order.id}', 'pending')" class="text-xs bg-white border border-amber-300 text-amber-800 px-2.5 py-1 rounded-lg font-bold hover:bg-amber-50 transition shadow-sm">
+                🔄 Re-open
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // ── Show GPS Coordinates Bar ────────────────────────────────────────────
+    function showGpsBar(order) {
+      const bar  = document.getElementById('gps-coords-bar');
+      const lat  = document.getElementById('gps-lat');
+      const lng  = document.getElementById('gps-lng');
+      const link = document.getElementById('gps-maps-link');
+      const addr = document.getElementById('gps-address');
+      if (!bar) return;
+      bar.classList.remove('hidden');
+      if (lat)  lat.innerText  = order.lat  ? order.lat.toFixed(5)  : '—';
+      if (lng)  lng.innerText  = order.lng  ? order.lng.toFixed(5)  : '—';
+      if (link) link.href = `https://www.google.com/maps?q=${order.lat},${order.lng}`;
+      if (addr) addr.innerText = order.address || '';
+    }
+
+    // ── Sidebar toggle (mobile) ────────────────────────────────────────────
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+      document.getElementById('sidebar-overlay').classList.toggle('show');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('sidebar-open');
+      document.getElementById('sidebar-overlay').classList.remove('show');
+    }
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      updateKPIs();
+      renderRecentOrders();
+      renderOrdersList();
+      updateLiveTime();
+      setInterval(updateLiveTime, 1000);
+
+      // Render initial live customer pins & align van to active customer
+      orders.filter(o => o.status === 'pending' || o.status === 'active').forEach(dropCustomerPin);
+      syncVanPosition();
+
+      connectSSE(); // 🔌 Connect to live relay server
+
+      // Fetch live van status on load
+      fetch(`${SERVER}/api/van-status`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && typeof data.free === 'boolean') {
+            renderAdminVanDutyUI(data.free, data.busyMinutes || 15);
+          }
+        })
+        .catch(() => {});
+
+      // Fetch live mechanic contact banner settings
+      loadAdminMechanicContact();
+
+      // Fetch live shop location settings
+      loadAdminShopLocation();
+    });
+
+    function updateLiveTime() {
+      const now = new Date();
+      document.getElementById('live-time').innerText = now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // ---- Panel Navigation ----
+    function showPanel(panelId) {
+      closeSidebar(); // close on mobile when nav item tapped
+      document.querySelectorAll('main > div').forEach(p => p.classList.add('hidden'));
+      document.getElementById(panelId).classList.remove('hidden');
+
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active', 'text-amber-400'));
+      const panelMap = {
+        'panel-dashboard': 0, 'panel-orders': 1, 'panel-map': 2,
+        'panel-mechanics': 3, 'panel-banner': 4, 'panel-shop': 5,
+        'panel-rates': 6, 'panel-inventory': 7
+      };
+      const titles = {
+        'panel-dashboard': ['डैशबोर्ड', 'आज का सारांश'],
+        'panel-orders': ['बुकिंग ऑर्डर', 'सभी इनकमिंग और पूरे ऑर्डर'],
+        'panel-map': ['लाइव वैन मैप', 'वैन की रियल-टाइम लोकेशन'],
+        'panel-mechanics': ['मैकेनिक टीम', 'स्टेटस और ड्यूटी मैनेजमेंट'],
+        'panel-banner': ['कॉल विज्ञापन बैनर', 'ग्राहक ऐप पर ऑन-ड्यूटी मैकेनिक और विज्ञापन फ़ोन नंबर सेटिंग्स'],
+        'panel-shop': ['स्थायी दुकान / वर्कशॉप लोकेशन', 'ग्राहक ऐप के मैप पर दुकान का पता, पिन और गूगल मैप्स सेटिंग्स'],
+        'panel-rates': ['रेट मैनेजमेंट', 'सर्विस और दूरी चार्ज अपडेट करें'],
+        'panel-inventory': ['टायर इन्वेंटरी', 'वैन में मौजूद स्टॉक मैनेज करें'],
+      };
+      document.getElementById('page-title').innerText = titles[panelId][0];
+      document.getElementById('page-subtitle').innerHTML = `${titles[panelId][1]} • <span id="live-time"></span>`;
+      updateLiveTime();
+
+      const idx = panelMap[panelId];
+      const links = document.querySelectorAll('.sidebar-link');
+      if (links[idx]) links[idx].classList.add('active');
+    }
+
+    // ---- Orders Rendering ----
+    function renderRecentOrders() {
+      const tbody = document.getElementById('recent-orders-body');
+      const liveOrders = orders.filter(o => o.status !== 'cancelled');
+      if (liveOrders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 font-medium">कोई एक्टिव लाइव ऑर्डर नहीं है</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = liveOrders.slice(0, 5).map(o => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-4 py-3 font-bold text-slate-800 text-[11px]">${o.id}</td>
+          <td class="px-4 py-3 text-slate-700">${o.customer}</td>
+          <td class="px-4 py-3 text-slate-600 max-w-[120px] truncate">${o.service}</td>
+          <td class="px-4 py-3 font-bold text-slate-900">₹${o.amount}</td>
+          <td class="px-4 py-3">${statusBadge(o.status)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderOrdersList() {
+      let filtered = [];
+      if (currentFilter === 'live') {
+        filtered = orders.filter(o => o.status !== 'cancelled' && o.status !== 'done');
+      } else if (currentFilter === 'all') {
+        filtered = orders;
+      } else {
+        filtered = orders.filter(o => o.status === currentFilter);
+      }
+
+      const countLabel = document.getElementById('order-count-label');
+      if (countLabel) {
+        const labelName = currentFilter === 'live' ? 'लाइव ऑर्डर्स' : currentFilter === 'cancelled' ? 'रद्द बुकिंग' : currentFilter;
+        countLabel.innerText = `${filtered.length} ऑर्डर (${labelName})`;
+      }
+
+      if (filtered.length === 0) {
+        let emptyMsg = 'कोई ऑर्डर नहीं';
+        if (currentFilter === 'live') emptyMsg = '⚡ कोई भी लाइव बुकिंग (Pending / Active) नहीं है।';
+        else if (currentFilter === 'cancelled') emptyMsg = '🚫 कोई रद्द की गई बुकिंग (Cancelled) नहीं है।';
+        else if (currentFilter === 'pending') emptyMsg = '⏳ कोई पेंडिंग बुकिंग नहीं है।';
+        else if (currentFilter === 'active') emptyMsg = '🚐 कोई एक्टिव बुकिंग नहीं है।';
+        else if (currentFilter === 'done') emptyMsg = '✅ कोई पूरी हुई बुकिंग नहीं है।';
+
+        document.getElementById('orders-list').innerHTML = `
+          <div class="text-center py-12 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <div class="text-4xl mb-2">${currentFilter === 'cancelled' ? '🚫' : currentFilter === 'live' ? '⚡' : '📋'}</div>
+            <p class="text-slate-600 font-bold text-sm">${emptyMsg}</p>
+          </div>
+        `;
+        return;
+      }
+
+      document.getElementById('orders-list').innerHTML = filtered.map(o => `
+        <div class="bg-white rounded-2xl border ${o.status === 'cancelled' ? 'border-red-200 bg-red-50/20' : o.status === 'arrived' ? 'border-cyan-400 ring-2 ring-cyan-100' : 'border-slate-200'} shadow-sm p-4 transition-all">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl ${o.status === 'cancelled' ? 'bg-red-100 text-red-600' : o.status === 'arrived' ? 'bg-cyan-100 text-cyan-700' : o.status === 'onway' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'} flex items-center justify-center font-black text-sm">
+                ${o.id.replace('PW-', '#')}
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="font-bold text-sm text-slate-900">${o.customer}</h4>
+                  ${o.vip ? '<span class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black">VIP</span>' : ''}
+                </div>
+                <p class="text-[11px] text-slate-500">${o.phone} • ${o.time}</p>
+              </div>
+            </div>
+            ${statusBadge(o.status)}
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100">
+            <div class="flex justify-between items-center text-slate-600">
+              <span>वाहन / मॉडल:</span>
+              <span class="font-bold text-slate-900">
+                ${(o.vehicle || 'गाड़ी').toUpperCase()}${o.vehicleModel ? ` • <span class="text-blue-700 font-extrabold">${o.vehicleModel}</span>` : ''}
+              </span>
+            </div>
+            <div class="flex justify-between items-center text-slate-600">
+              <span>गाड़ी का नंबर:</span>
+              <div class="flex items-center gap-1.5">
+                <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 font-mono tracking-wider text-xs">
+                  ${o.vehicleNumber || 'नहीं बताया'}
+                </span>
+              </div>
+            </div>
+            <div class="flex justify-between text-slate-600"><span>सर्विस:</span><span class="font-semibold">${o.service || '—'}</span></div>
+            <div class="flex justify-between text-slate-600"><span>दूरी:</span><span class="font-semibold">${o.distanceKm || o.distance || '—'} KM</span></div>
+            <div class="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1 mt-1"><span>कुल राशि:</span><span class="text-amber-800 font-black text-sm">₹${o.amount || '—'}</span></div>
+            ${o.lat && o.lng ? `
+            <div class="flex justify-between items-center text-slate-600 border-t border-slate-200 pt-1 mt-1">
+              <span>📍 लोकेशन:</span>
+              <button onclick="openMapModal('${o.id}',${o.lat},${o.lng},'${o.customer}','${o.phone}','${(o.vehicle||'').toUpperCase()}','${o.vehicleModel||''}','${o.vehicleNumber||''}')" class="text-blue-600 font-semibold underline">
+                ${parseFloat(o.lat).toFixed(5)}, ${parseFloat(o.lng).toFixed(5)} 🗺️
+              </button>
+            </div>` : ''}
+          </div>
+          <div class="flex gap-2 mt-3">
+            <a href="tel:${o.phone}" class="flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition">
+              <i class="fa-solid fa-phone"></i> कॉल करें
+            </a>
+            ${o.lat && o.lng ? `
+            <button onclick="openMapModal('${o.id}',${o.lat},${o.lng},'${o.customer}','${o.phone}','${(o.vehicle||'').toUpperCase()}','${o.vehicleModel||''}','${o.vehicleNumber||''}')" class="flex items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition">
+              <i class="fa-solid fa-location-dot"></i> मैप + ट्रैकिंग
+            </button>` : `<span class="flex items-center gap-1 bg-slate-200 text-slate-500 font-bold px-4 py-2 rounded-xl text-xs">
+              <i class="fa-solid fa-location-dot"></i> लोकेशन नहीं
+            </span>`}
+          </div>
+
+          <!-- 🔑 OTP Box: ONLY shown when arrived at customer -->
+          ${(o.status === 'arrived') ? `
+          <div class="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-3 shadow-sm animate-bounce-short">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक से 4-अंकों का OTP पूछकर यहाँ डालें:
+              </span>
+              <span class="text-[10px] text-blue-700 bg-blue-100 font-bold px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                <i class="fa-solid fa-mobile-screen"></i> ग्राहक स्क्रीन पर है
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <input id="otp-input-${o.id}" type="number" maxlength="4" placeholder="4-अंकों का OTP डालें"
+                onkeydown="if(event.key==='Enter') verifyOtp('${o.id}')"
+                class="flex-1 bg-white border-2 border-blue-300 rounded-xl px-3 py-2 text-center font-black text-base tracking-widest text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <button onclick="verifyOtp('${o.id}')"
+                class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-check"></i> Verify करें
+              </button>
+            </div>
+            <p id="otp-error-${o.id}" class="text-red-600 text-[11px] font-bold mt-1 hidden"></p>
+            <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-blue-200/60">
+              <span class="text-[10px] text-slate-500">नेटवर्क न होने पर:</span>
+              <button onclick="updateOrderStatus('${o.id}', 'active')" class="text-[11px] text-blue-700 hover:text-blue-900 font-bold underline">
+                बिना OTP काम शुरू करें
+              </button>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-2">
+            <button onclick="openCancelModal('${o.id}')" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1">
+              <i class="fa-solid fa-ban"></i> कैंसल
+            </button>
+          </div>
+          ` : ''}
+
+          <!-- 1. PENDING: Accept / Reject -->
+          ${o.status === 'pending' ? `
+          <div class="flex gap-2 mt-2.5">
+            <button onclick="updateOrderStatus('${o.id}', 'accepted')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-circle-check"></i> ✔ स्वीकार करें (Accept)
+            </button>
+            <button onclick="openCancelModal('${o.id}')" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5" title="ऑर्डर रद्द करें">
+              <i class="fa-solid fa-ban"></i> रिजेक्ट
+            </button>
+          </div>` : ''}
+
+          <!-- 2. ACCEPTED: Start Ride -->
+          ${o.status === 'accepted' ? `
+          <div class="flex gap-2 mt-2.5">
+            <button onclick="startRide('${o.id}')" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md shadow-blue-500/25">
+              <i class="fa-solid fa-car-side"></i> 🚗 राइड शुरू करें (Start Ride)
+            </button>
+            <button onclick="openCancelModal('${o.id}')" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold px-3 py-2.5 rounded-xl text-xs transition">
+              <i class="fa-solid fa-ban"></i> कैंसल
+            </button>
+          </div>` : ''}
+
+          <!-- 3. ON THE WAY: Reached / Arrived -->
+          ${o.status === 'onway' ? `
+          <div class="flex gap-2 mt-2.5">
+            <button onclick="markCustomerArrived('${o.id}')" class="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/25 animate-pulse">
+              <i class="fa-solid fa-location-dot"></i> 📍 ग्राहक के पास पहुँच गए (Reached)
+            </button>
+            <button onclick="openCancelModal('${o.id}')" class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold px-3 py-2.5 rounded-xl text-xs transition">
+              <i class="fa-solid fa-ban"></i>
+            </button>
+          </div>` : ''}
+
+          <!-- 4. ACTIVE: Work in progress -->
+          ${o.status === 'active' ? `
+          <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 font-extrabold text-xs py-2 px-3 rounded-xl flex items-center justify-center gap-2 mt-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> ✅ OTP Verified! गाड़ी पर काम चालू है।
+          </div>
+          <div class="flex gap-2 mt-2.5">
+            <button onclick="updateOrderStatus('${o.id}', 'done')"
+              class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-sm">
+              <i class="fa-solid fa-flag-checkered"></i> काम पूरा हुआ (Done)
+            </button>
+            <button onclick="openCancelModal('${o.id}')"
+              class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5" title="ऑर्डर रद्द करें">
+              <i class="fa-solid fa-ban"></i> कैंसल
+            </button>
+          </div>` : ''}
+
+          <!-- 5. CANCELLED -->
+          ${o.status === 'cancelled' ? `
+          <div class="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-800 space-y-1">
+            <div class="flex items-center justify-between font-bold text-red-700">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-ban"></i> रद्द की गई बुकिंग (Cancelled)</span>
+              <span class="text-[10px] bg-red-200/70 text-red-900 font-bold px-2 py-0.5 rounded">लाइव लिस्ट से बाहर</span>
+            </div>
+            <p class="text-red-950 font-semibold mt-1">कारण: <strong>${o.cancelReason || 'एडमिन द्वारा'}</strong></p>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button onclick="updateOrderStatus('${o.id}', 'pending')" class="flex-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-arrow-rotate-left"></i> वापस लाइव करें (Re-open)
+            </button>
+            <a href="tel:${o.phone}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-phone"></i> कॉल
+            </a>
+          </div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function statusBadge(status) {
+      const map = {
+        pending:   '<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>⏳ नई बुकिंग</span>',
+        accepted:  '<span class="bg-indigo-100 text-indigo-900 border border-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">👍 स्वीकृत</span>',
+        onway:     '<span class="bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping"></span>🚗 रास्ते में</span>',
+        arrived:   '<span class="bg-cyan-100 text-cyan-900 border border-cyan-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>📍 पहुँच गए (OTP)</span>',
+        active:    '<span class="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>🔧 काम चालू</span>',
+        done:      '<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ पूर्ण</span>',
+        cancelled: '<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full">❌ रद्द</span>',
+      };
+      return map[status] || `<span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full">${status}</span>`;
+    }
+
+    function filterOrders(f) {
+      currentFilter = f;
+      document.querySelectorAll('.order-filter').forEach(b => {
+        b.classList.remove('bg-slate-900', 'text-white', 'shadow-sm');
+        b.classList.add('bg-white', 'text-slate-600');
+        if (b.id === 'filter-cancelled') {
+          b.classList.add('border-red-300', 'text-red-600');
+        } else {
+          b.classList.add('border-slate-300');
+        }
+      });
+      const active = document.getElementById(`filter-${f}`);
+      if (active) {
+        active.classList.add('bg-slate-900', 'text-white', 'shadow-sm');
+        active.classList.remove('bg-white', 'text-slate-600', 'border-slate-300', 'border-red-300', 'text-red-600');
+      }
+      renderOrdersList();
+    }
+
+    function startRide(orderId) {
+      updateOrderStatus(orderId, 'onway');
+      fetch(`${SERVER}/api/mechanic-started`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      }).catch(() => {});
+      showToast(`🚗 राइड शुरू! मेकैनिक रवाना हो गया है।`);
+    }
+
+    function markCustomerArrived(orderId) {
+      updateOrderStatus(orderId, 'arrived');
+      mechanicArrived(orderId);
+      showToast(`📍 ग्राहक के पास पहुँच गए! ग्राहक से OTP पूछकर दर्ज करें।`);
+    }
+
+    function updateOrderStatus(orderId, newStatus, reason = '') {
+      // 1. Immediately update local state so UI is 100% instant & never blocks
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        order.status = newStatus;
+        if (reason) order.cancelReason = reason;
+        dropCustomerPin(order);
+      }
+      if (activeLiveCardOrderId === orderId && order) {
+        updateLiveLocationCard(order);
+      }
+
+      if (newStatus === 'cancelled') {
+        // Automatically switch filter to 'cancelled' so user sees the order in the reject list!
+        showPanel('panel-orders');
+        filterOrders('cancelled');
+        showToast(`🚫 ऑर्डर ${orderId} रद्द हुआ और "रद्द बुकिंग" लिस्ट में आ गया!`);
+      } else if (newStatus === 'pending') {
+        showPanel('panel-orders');
+        filterOrders('live');
+        showToast(`🔄 ऑर्डर ${orderId} वापस लाइव लिस्ट में शामिल किया गया!`);
+      } else if (newStatus === 'accepted') {
+        showToast(`👍 ऑर्डर ${orderId} स्वीकार कर लिया गया! अब 'Start Ride' दबाएं।`);
+      } else if (newStatus === 'onway') {
+        showToast(`🚗 राइड शुरू! मेकैनिक रास्ते में है।`);
+      } else if (newStatus === 'arrived') {
+        showToast(`📍 ग्राहक के पास पहुँच गए! ग्राहक की स्क्रीन पर OTP भेज दिया गया है।`);
+      } else if (newStatus === 'active') {
+        showToast(`✅ ऑर्डर ${orderId} एक्टिव! ऑन-साइट काम चालू है।`);
+      } else if (newStatus === 'done') {
+        showToast(`🏁 ऑर्डर ${orderId} पूरा हुआ!`);
+      }
+
+      renderOrdersList();
+      renderRecentOrders();
+      updateKPIs();
+
+      // 2. Sync to server in background
+      fetch(`${SERVER}/api/order-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, status: newStatus, reason: reason })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.order) {
+          const idx = orders.findIndex(o => o.id === orderId);
+          if (idx !== -1) orders[idx] = data.order;
+          renderOrdersList();
+          renderRecentOrders();
+          updateKPIs();
+        }
+      })
+      .catch(err => {
+        console.error('Server sync error (handled locally):', err);
+      });
+    }
+
+    function updateKPIs() {
+      const done = orders.filter(o => o.status === 'done').length + 21; // +21 base
+      const pending = orders.filter(o => o.status === 'pending').length;
+      const cancelled = orders.filter(o => o.status === 'cancelled').length;
+      const live = orders.filter(o => o.status !== 'cancelled' && o.status !== 'done').length;
+
+      const kpiOrders = document.getElementById('kpi-orders');
+      if (kpiOrders) kpiOrders.innerText = done;
+
+      const kpiPending = document.getElementById('kpi-pending');
+      if (kpiPending) kpiPending.innerText = pending;
+
+      const kpiCancelled = document.getElementById('kpi-cancelled');
+      if (kpiCancelled) kpiCancelled.innerText = cancelled;
+
+      const cancelledBadge = document.getElementById('cancelled-count-badge');
+      if (cancelledBadge) cancelledBadge.innerText = cancelled;
+
+      const liveBadge = document.getElementById('live-count-badge');
+      if (liveBadge) liveBadge.innerText = live;
+
+      const badge = document.getElementById('order-badge');
+      if (badge) {
+        badge.innerText = pending;
+        badge.style.display = pending > 0 ? '' : 'none';
+      }
+    }
+
+    function clearAllOrders() {      if (!confirm('⚠️ क्या आप सभी पुरानी बुकिंग हटाना चाहते हैं?\n\nयह कार्रवाई वापस नहीं होगी।')) return;
+      fetch('http://localhost:3002/api/clear-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(r => r.json())
+      .then(() => {
+        orders = [];
+        renderOrdersList();
+        renderRecentOrders();
+        updateKPIs();
+        const badge = document.getElementById('order-badge');
+        badge.innerText = 0;
+        badge.style.display = 'none';
+        showToast('🗑️ सभी पुरानी बुकिंग क्लियर हो गईं!');
+      })
+      .catch(() => {
+        // Offline fallback — clear locally
+        orders = [];
+        renderOrdersList();
+        renderRecentOrders();
+        updateKPIs();
+        showToast('🗑️ बुकिंग क्लियर हो गईं (ऑफलाइन मोड)');
+      });
+    }
+
+    // ---- OTP Functions ----
+    function mechanicArrived(orderId) {
+      fetch(`${SERVER}/api/generate-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const order = orders.find(o => o.id === orderId);
+          if (order && data.otp) order.otp = data.otp;
+          renderOrdersList();
+          if (activeLiveCardOrderId === orderId && order) updateLiveLocationCard(order);
+          showToast(`📱 OTP भेजा गया! ग्राहक को मिल गया होगा।`);
+        }
+      })
+      .catch(() => showToast('❌ Server से जुड़ नहीं पाए'));
+    }
+
+    function verifyOtp(orderId) {
+      const input = document.getElementById(`otp-input-${orderId}`);
+      const errEl = document.getElementById(`otp-error-${orderId}`);
+      const otp = input ? input.value.trim() : '';
+      if (!otp || otp.length < 4) {
+        if (errEl) { errEl.innerText = '⚠️ 4 अंकों का OTP डालें'; errEl.classList.remove('hidden'); }
+        return;
+      }
+      executeOtpVerification(orderId, otp, input, errEl);
+    }
+
+    function verifyLiveCardOtp(orderId) {
+      const input = document.getElementById(`live-card-otp-input-${orderId}`);
+      const errEl = document.getElementById(`live-card-otp-error-${orderId}`);
+      const otp = input ? input.value.trim() : '';
+      if (!otp || otp.length < 4) {
+        if (errEl) { errEl.innerText = '⚠️ 4 अंकों का OTP डालें'; errEl.classList.remove('hidden'); }
+        return;
+      }
+      executeOtpVerification(orderId, otp, input, errEl);
+    }
+
+    function executeOtpVerification(orderId, otp, inputEl, errEl, isModal = false) {
+      fetch(`${SERVER}/api/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, otp })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast(`✅ OTP Verified! सर्विस शुरू हो गई — ${orderId}`);
+          const order = orders.find(o => o.id === orderId);
+          if (order) {
+            order.status = 'active';
+            order.otpVerified = true;
+          }
+          if (isModal) {
+            const entry = document.getElementById('modal-otp-entry');
+            if (entry) {
+              entry.innerHTML = `<p class="text-emerald-700 font-black text-sm text-center py-2">✅ OTP Verified! सर्विस सफलतापूर्वक शुरू हो गई।</p>`;
+            }
+          }
+          renderOrdersList();
+          renderRecentOrders();
+          updateKPIs();
+          if (order) {
+            if (activeLiveCardOrderId === order.id) {
+              updateLiveLocationCard(order);
+            }
+            dropCustomerPin(order);
+            syncVanPosition();
+          }
+        } else {
+          if (errEl) {
+            errEl.innerText = `❌ ${data.error || 'गलत OTP'}`;
+            errEl.classList.remove('hidden');
+          }
+          if (inputEl) {
+            inputEl.value = '';
+            inputEl.focus();
+          }
+        }
+      })
+      .catch(() => {
+        if (errEl) {
+          errEl.innerText = '❌ Server से जुड़ नहीं पाए';
+          errEl.classList.remove('hidden');
+        }
+      });
+    }
+
+    // ---- Simulate New Order ----    let orderCounter = 1042;
+    const demoNames = ['विकास चौहान', 'मीना देवी', 'अंकित सिंह', 'रेखा बाई', 'नितिन त्यागी'];
+    const demoServices = ['पंचर रिपेयर (कार)', 'एयर रीफिल (बाइक)', 'स्टेफनी चेंज (SUV)', 'ट्यूब पंचर (बाइक)'];
+    function simulateNewOrder() {
+      const name = demoNames[Math.floor(Math.random() * demoNames.length)];
+      const svc = demoServices[Math.floor(Math.random() * demoServices.length)];
+      const dist = (Math.random() * 7 + 1).toFixed(1);
+      const amt = Math.round(150 + (Math.max(0, dist - 2) * 15) + 100);
+      const newOrder = {
+        id: `PW-${orderCounter++}`, customer: name, phone: '9XXXX-XXXXX',
+        service: svc, distance: parseFloat(dist), amount: amt,
+        status: 'pending', time: new Date().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }),
+        vip: Math.random() > 0.8
+      };
+      orders.unshift(newOrder);
+      renderRecentOrders();
+      renderOrdersList();
+      const badge = document.getElementById('order-badge');
+      badge.innerText = orders.filter(o => o.status === 'pending').length;
+      showToast(`🔔 नया ऑर्डर: ${name} — ${svc} (₹${amt})`);
+    }
+
+    // ---- Map Van Movement ----
+    function moveVanOnMap() {
+      const activeOrder = orders.find(o => o.status === 'active');
+      if (activeOrder) {
+        showToast(`🛻 वैन अभी ग्राहक ${activeOrder.customer} (${activeOrder.id}) के पास ऑन-साइट काम कर रही है!`);
+        syncVanPosition();
+      } else {
+        vanPosIdx = (vanPosIdx + 1) % vanPositions.length;
+        syncVanPosition();
+        showToast('🚚 वैन पेट्रोलिंग लोकेशन अपडेट हुई');
+      }
+    }
+
+    // ---- Global Van Toggle ----
+    function toggleGlobalStatus() {
+      const checked = document.getElementById('global-van-toggle').checked;
+      const dot = document.getElementById('global-dot');
+      const text = document.getElementById('global-status-text');
+      if (checked) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
+        text.className = 'text-xs font-bold text-emerald-400';
+        text.innerText = 'उपलब्ध (Free)';
+        showToast('✅ वैन अब ऑनलाइन है — ग्राहक बुक कर सकते हैं');
+      } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-400 pulse-dot';
+        text.className = 'text-xs font-bold text-red-400';
+        text.innerText = 'ऑफलाइन (Off Duty)';
+        showToast('⚠️ वैन ऑफलाइन — नई बुकिंग बंद है');
+      }
+    }
+
+    // ---- Mechanic Toggle ----
+    // ── Live Van Duty & Busy Control (Admin) ──
+    let currentVanFree = true;
+    let currentVanBusyMins = 15;
+
+    function renderAdminVanDutyUI(free, busyMins = 15) {
+      currentVanFree = free;
+      currentVanBusyMins = busyMins;
+
+      const pill = document.getElementById('admin-van-status-pill');
+      const btnFree = document.getElementById('btn-set-free');
+      const btnBusy = document.getElementById('btn-set-busy');
+      const config = document.getElementById('admin-busy-config');
+      const input = document.getElementById('admin-custom-minutes');
+
+      if (input) input.value = busyMins;
+
+      if (free) {
+        if (pill) {
+          pill.className = 'text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold';
+          pill.innerText = '🟢 उपलब्ध (Free)';
+        }
+        if (btnFree) {
+          btnFree.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow ring-2 ring-emerald-400';
+        }
+        if (btnBusy) {
+          btnBusy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700';
+        }
+        if (config) config.classList.add('hidden');
+      } else {
+        if (pill) {
+          pill.className = 'text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold';
+          pill.innerText = `🟠 व्यस्त (~${busyMins} मिनट)`;
+        }
+        if (btnFree) {
+          btnFree.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700';
+        }
+        if (btnBusy) {
+          btnBusy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 font-black shadow ring-2 ring-amber-400';
+        }
+        if (config) config.classList.remove('hidden');
+      }
+    }
+
+    function setAdminVanStatus(isFree, mins = 15) {
+      const busyMins = isFree ? 0 : (mins || 15);
+      renderAdminVanDutyUI(isFree, busyMins);
+
+      fetch(`${SERVER}/api/van-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ free: isFree, busyMinutes: busyMins, queueCount: isFree ? 0 : 1 })
+      })
+      .then(r => r.json())
+      .then(() => {
+        showToast(isFree ? '✅ वैन उपलब्ध (Free) सेट हुई — ग्राहक तुरंत बुक कर सकते हैं' : `🟠 वैन व्यस्त सेट हुई — ग्राहकों को ${busyMins}m वेटिंग टाइम दिखेगा`);
+      })
+      .catch(() => showToast('❌ सर्वर से कनेक्ट नहीं हो सके'));
+    }
+
+    function setBusyMinutes(mins) {
+      document.querySelectorAll('#quick-min-buttons button').forEach(b => {
+        b.className = 'quick-min-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1 rounded-lg font-bold';
+      });
+      const target = event?.target;
+      if (target) target.className = 'quick-min-btn bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg';
+      setAdminVanStatus(false, mins);
+    }
+
+    function applyCustomBusyMinutes() {
+      const val = parseInt(document.getElementById('admin-custom-minutes')?.value) || 15;
+      setAdminVanStatus(false, val);
+    }
+
+    // ── Direct Call Banner Settings (Admin) ──
+    function loadAdminMechanicContact() {
+      fetch(`${SERVER}/api/mechanic-contact`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.phone) {
+            const nameInp = document.getElementById('admin-banner-mech-name');
+            const phoneInp = document.getElementById('admin-banner-mech-phone');
+            const tagInp = document.getElementById('admin-banner-mech-tagline');
+            if (nameInp) nameInp.value = data.name || '';
+            if (phoneInp) phoneInp.value = data.phone || '';
+            if (tagInp) tagInp.value = data.tagline || '';
+            updateAdminBannerPreview();
+          }
+        })
+        .catch(() => {});
+    }
+
+    function updateAdminBannerPreview() {
+      const name = document.getElementById('admin-banner-mech-name')?.value || 'ऑन-ड्यूटी मैकेनिक';
+      const phone = document.getElementById('admin-banner-mech-phone')?.value || '9876543210';
+      const tagline = document.getElementById('admin-banner-mech-tagline')?.value || 'सीधे कॉल करें • 10-15 मिनट में ऑन-साइट पहुँचेगा';
+
+      const prevName = document.getElementById('admin-preview-name');
+      const prevPhone = document.getElementById('admin-preview-phone');
+      const prevTag = document.getElementById('admin-preview-tagline');
+
+      if (prevName) prevName.innerText = name;
+      if (prevPhone) prevPhone.innerText = phone;
+      if (prevTag) prevTag.innerText = tagline;
+    }
+
+    function saveAdminMechanicContact() {
+      const name = document.getElementById('admin-banner-mech-name')?.value.trim() || 'ऑन-ड्यूटी मैकेनिक';
+      const phone = document.getElementById('admin-banner-mech-phone')?.value.trim() || '9876543210';
+      const tagline = document.getElementById('admin-banner-mech-tagline')?.value.trim() || 'सीधे कॉल करें • 10-15 मिनट में ऑन-साइट पहुँचेगा';
+
+      fetch(`${SERVER}/api/mechanic-contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, tagline })
+      })
+      .then(r => r.json())
+      .then(res => {
+        showToast('✅ कॉलिंग बैनर अपडेट हो गया! ग्राहक ऐप पर तुरंत नया नंबर दिखेगा।');
+        updateAdminBannerPreview();
+      })
+      .catch(() => {
+        showToast('❌ सर्वर से संपर्क नहीं हो सका');
+      });
+    }
+
+    // ── Shop Location Settings (Admin) ──
+    function populateAdminShopFields(data) {
+      if (!data) return;
+      const nameInp = document.getElementById('admin-shop-name');
+      const phoneInp = document.getElementById('admin-shop-phone');
+      const addrInp = document.getElementById('admin-shop-address');
+      const landInp = document.getElementById('admin-shop-landmark');
+      const timeInp = document.getElementById('admin-shop-timings');
+      const distInp = document.getElementById('admin-shop-distance');
+      const latInp = document.getElementById('admin-shop-lat');
+      const lngInp = document.getElementById('admin-shop-lng');
+
+      if (nameInp && data.name) nameInp.value = data.name;
+      if (phoneInp && data.phone) phoneInp.value = data.phone;
+      if (addrInp && data.address) addrInp.value = data.address;
+      if (landInp && data.landmark) landInp.value = data.landmark;
+      if (timeInp && data.timings) timeInp.value = data.timings;
+      if (distInp && data.distanceKm !== undefined) distInp.value = data.distanceKm;
+      if (latInp && data.lat) latInp.value = data.lat;
+      if (lngInp && data.lng) lngInp.value = data.lng;
+    }
+
+    function loadAdminShopLocation() {
+      fetch(`${SERVER}/api/shop-location`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.name) {
+            populateAdminShopFields(data);
+            updateAdminShopPreview();
+          }
+        })
+        .catch(() => {});
+    }
+
+    function updateAdminShopPreview() {
+      const name = document.getElementById('admin-shop-name')?.value || 'रमेश टायर & पंचर वर्क्स';
+      const phone = document.getElementById('admin-shop-phone')?.value || '9876543210';
+      const address = document.getElementById('admin-shop-address')?.value || 'शॉप नंबर 4, NH-48 हाईवे';
+      const landmark = document.getElementById('admin-shop-landmark')?.value || 'HP पेट्रोल पंप के सामने';
+      const timings = document.getElementById('admin-shop-timings')?.value || '24×7 खुला है';
+      const dist = document.getElementById('admin-shop-distance')?.value || '2.1';
+
+      const prevName = document.getElementById('admin-shop-preview-name');
+      const prevPhone = document.getElementById('admin-shop-preview-phone');
+      const prevAddr = document.getElementById('admin-shop-preview-address');
+      const prevLand = document.getElementById('admin-shop-preview-landmark');
+      const prevTime = document.getElementById('admin-shop-preview-timings');
+      const prevDist = document.getElementById('admin-shop-preview-dist');
+
+      if (prevName) prevName.innerText = name;
+      if (prevPhone) prevPhone.innerText = phone;
+      if (prevAddr) prevAddr.innerText = address;
+      if (prevLand) prevLand.innerText = 'लैंडमार्क: ' + landmark;
+      if (prevTime) prevTime.innerText = timings;
+      if (prevDist) prevDist.innerText = dist + ' KM दूर';
+    }
+
+    function detectAdminGPSForShop() {
+      if (!navigator.geolocation) {
+        showToast('⚠️ आपके ब्राउज़र में GPS सपोर्ट नहीं है');
+        return;
+      }
+      showToast('🛰️ वर्तमान GPS लोकेशन खोजी जा रही है...');
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude.toFixed(4);
+          const lng = pos.coords.longitude.toFixed(4);
+          const latInp = document.getElementById('admin-shop-lat');
+          const lngInp = document.getElementById('admin-shop-lng');
+          if (latInp) latInp.value = lat;
+          if (lngInp) lngInp.value = lng;
+          updateAdminShopPreview();
+          showToast(`📍 GPS मिल गया: Lat ${lat}, Lng ${lng}`);
+        },
+        err => {
+          showToast('⚠️ GPS अनुमति नहीं मिली। कृपया मैन्युअल दर्ज करें।');
+        },
+        { timeout: 7000 }
+      );
+    }
+
+    function saveAdminShopLocation() {
+      const name = document.getElementById('admin-shop-name')?.value.trim() || 'रमेश टायर & पंचर वर्क्स (मेन वर्कशॉप)';
+      const phone = document.getElementById('admin-shop-phone')?.value.trim() || '9876543210';
+      const address = document.getElementById('admin-shop-address')?.value.trim() || '';
+      const landmark = document.getElementById('admin-shop-landmark')?.value.trim() || '';
+      const timings = document.getElementById('admin-shop-timings')?.value.trim() || '24×7 खुला है';
+      const distanceKm = parseFloat(document.getElementById('admin-shop-distance')?.value) || 2.1;
+      const lat = parseFloat(document.getElementById('admin-shop-lat')?.value) || 31.3985;
+      const lng = parseFloat(document.getElementById('admin-shop-lng')?.value) || 76.8240;
+
+      fetch(`${SERVER}/api/shop-location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, address, landmark, timings, distanceKm, lat, lng })
+      })
+      .then(r => r.json())
+      .then(res => {
+        showToast('✅ स्थायी वर्कशॉप/दुकान लोकेशन सेव हो गई! ग्राहक ऐप में मैप पर तुरंत अपडेट हो गया।');
+        updateAdminShopPreview();
+      })
+      .catch(() => {
+        showToast('❌ सर्वर से संपर्क नहीं हो सका');
+      });
+    }
+
+    function toggleMechanicStatus(btn, currentStatus) {
+      const card = btn.closest('.space-y-3');
+      const badge = card.querySelector('span.rounded-full');
+      if (currentStatus === 'free') {
+        badge.className = 'text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> व्यस्त';
+        btn.innerText = 'फ्री करें';
+        btn.onclick = () => toggleMechanicStatus(btn, 'busy');
+        btn.className = btn.className.replace('bg-amber-500 hover:bg-amber-400 text-slate-950', 'bg-emerald-500 hover:bg-emerald-400 text-white');
+        showToast('मैकेनिक व्यस्त मार्क किया गया — ग्राहकों को वेटिंग टाइम दिखेगा');
+
+        fetch(`${SERVER}/api/van-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ free: false, busyMinutes: 16, queueCount: 1 })
+        }).catch(() => {});
+      } else {
+        badge.className = 'text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> फ्री';
+        btn.innerText = 'व्यस्त करें';
+        btn.onclick = () => toggleMechanicStatus(btn, 'free');
+        btn.className = btn.className.replace('bg-emerald-500 hover:bg-emerald-400 text-white', 'bg-amber-500 hover:bg-amber-400 text-slate-950');
+        showToast('✅ मैकेनिक फ्री मार्क किया गया — वैन तुरंत उपलब्ध');
+
+        fetch(`${SERVER}/api/van-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ free: true, busyMinutes: 0, queueCount: 0 })
+        }).catch(() => {});
+      }
+    }
+
+    // ---- Inventory Stock Adjust ----
+    function adjustStock(btn, delta) {
+      const row = btn.closest('td').querySelector('.stock-val');
+      let val = parseInt(row.innerText) + delta;
+      if (val < 0) val = 0;
+      row.innerText = val;
+    }
+
+    // ---- Toast ----
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.className = 'toast bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl border border-slate-700 max-w-xs';
+      toast.innerText = msg;
+      document.getElementById('toast-container').appendChild(toast);
+      setTimeout(() => toast.remove(), 4200);
+    }
+  </script>
+
+  <!-- ══ CUSTOMER LOCATION MAP MODAL ══ -->
+  <div id="map-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div>
+          <h2 class="font-extrabold text-slate-900 text-base">📍 ग्राहक की लोकेशन</h2>
+          <p id="map-modal-name" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        <button onclick="closeMapModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="leaflet-map" style="height:320px;width:100%;"></div>
+      <div class="px-5 py-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+        <a id="map-gmaps-link" href="#" target="_blank"
+           class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-map-location-dot"></i> Google Maps में खोलें
+        </a>
+        <button id="map-start-track-btn" onclick="startMechanicTracking()"
+          class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-location-crosshairs"></i> ट्रैकिंग शुरू करें
+        </button>
+      </div>
+      <div id="tracking-status-bar" class="hidden px-5 py-3 bg-emerald-50 border-t border-emerald-200 text-xs text-emerald-700 font-bold flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+        ग्राहक को आपकी लाइव लोकेशन भेजी जा रही है...
+        <button onclick="stopMechanicTracking()" class="ml-auto bg-red-500 text-white px-3 py-1 rounded-lg text-xs">रोकें</button>
+      </div>
+
+      <!-- ══ ARRIVAL & OTP VERIFICATION IN MAP MODAL ══ -->
+      <div id="modal-otp-section" class="px-5 py-3 bg-slate-100 border-t border-slate-200">
+        <button id="modal-arrived-btn" onclick="modalMechanicArrived()"
+          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md">
+          <i class="fa-solid fa-location-pin-lock text-amber-300"></i> मैं पहुँच गया — ग्राहक को OTP भेजें
+        </button>
+
+        <div id="modal-otp-entry" class="hidden mt-2 bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+          <p class="text-xs text-blue-900 font-bold mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:
+          </p>
+          <div class="flex gap-2">
+            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+              onkeydown="if(event.key==='Enter') modalVerifyOtp()"
+              class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <button onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
+              ✓ Verify
+            </button>
+          </div>
+          <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Map Modal ────────────────────────────────────────────────────────────
+    let leafletMap       = null;
+    let customerMarker   = null;
+    let mechanicMarker   = null;
+    let trackingInterval = null;
+    let activeTrackOrder = null;
+
+    function openMapModal(orderId, lat, lng, customerName, phone, vehicleType = '', vehicleModel = '', vehicleNum = '') {
+      activeTrackOrder = orderId;
+      document.getElementById('map-modal').classList.remove('hidden');
+      const vDetails = [vehicleType, vehicleModel].filter(Boolean).join(' • ');
+      const vInfo = (vDetails || vehicleNum) ? ` • 🚗 ${vDetails} [${vehicleNum || 'N/A'}]` : '';
+      document.getElementById('map-modal-name').innerText = `${customerName}${vInfo} • ${phone}`;
+      document.getElementById('map-gmaps-link').href = `https://www.google.com/maps?q=${lat},${lng}`;
+      document.getElementById('tracking-status-bar').classList.add('hidden');
+      document.getElementById('map-start-track-btn').classList.remove('hidden');
+
+      // Reset arrival & OTP section
+      const arrBtn = document.getElementById('modal-arrived-btn');
+      const otpEntry = document.getElementById('modal-otp-entry');
+      const otpInput = document.getElementById('modal-otp-input');
+      const otpErr = document.getElementById('modal-otp-error');
+      if (arrBtn) arrBtn.classList.remove('hidden');
+      if (otpEntry) {
+        otpEntry.classList.add('hidden');
+        otpEntry.innerHTML = `
+          <p class="text-xs text-blue-900 font-bold mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:
+          </p>
+          <div class="flex gap-2">
+            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+              onkeydown="if(event.key==='Enter') modalVerifyOtp()"
+              class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <button onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
+              ✓ Verify
+            </button>
+          </div>
+          <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
+        `;
+      }
+      if (otpInput) otpInput.value = '';
+      if (otpErr) otpErr.classList.add('hidden');
+
+      // Init or reset map
+      setTimeout(() => {
+        if (leafletMap) {
+          leafletMap.remove();
+          leafletMap = null;
+        }
+        leafletMap = L.map('leaflet-map').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(leafletMap);
+
+        // Customer pin (blue)
+        const custIcon = L.divIcon({
+          html: `<div style="background:#2563eb;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #fff;box-shadow:0 2px 8px #0004;">📍</div>`,
+          className: '', iconAnchor: [18, 36]
+        });
+        customerMarker = L.marker([lat, lng], { icon: custIcon })
+          .addTo(leafletMap)
+          .bindPopup(`<b>${customerName}</b><br>🚗 ${vDetails || 'वाहन'}<br>नंबर: <b>${vehicleNum || 'N/A'}</b><br>${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+          .openPopup();
+      }, 100);
+    }
+
+    function closeMapModal() {
+      document.getElementById('map-modal').classList.add('hidden');
+      stopMechanicTracking();
+    }
+
+    function startMechanicTracking() {
+      if (!activeTrackOrder) return;
+      if (!navigator.geolocation) {
+        alert('आपके डिवाइस में GPS नहीं है।');
+        return;
+      }
+      document.getElementById('tracking-status-bar').classList.remove('hidden');
+      document.getElementById('map-start-track-btn').classList.add('hidden');
+
+      // Notify customer immediately that mechanic is on the way
+      fetch('http://localhost:3002/api/mechanic-started', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: activeTrackOrder })
+      }).catch(() => {});
+
+      const mechIcon = L.divIcon({
+        html: `<div style="background:#f59e0b;color:#000;border-radius:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid #fff;box-shadow:0 2px 12px #0006;">🛻</div>`,
+        className: '', iconAnchor: [20, 40]
+      });
+
+      // Send location every 3 seconds
+      trackingInterval = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+
+          // Update mechanic pin on map
+          if (!mechanicMarker) {
+            mechanicMarker = L.marker([lat, lng], { icon: mechIcon })
+              .addTo(leafletMap)
+              .bindPopup('<b>🛻 मेकैनिक (आप)</b>');
+          } else {
+            mechanicMarker.setLatLng([lat, lng]);
+          }
+          leafletMap.panTo([lat, lng]);
+
+          // Send to server → customer gets it via SSE
+          fetch('http://localhost:3002/api/mechanic-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: activeTrackOrder, lat, lng })
+          }).catch(() => {});
+        }, err => console.warn('GPS error:', err));
+      }, 3000);
+    }
+
+    function stopMechanicTracking() {
+      clearInterval(trackingInterval);
+      trackingInterval = null;
+      if (mechanicMarker && leafletMap) {
+        leafletMap.removeLayer(mechanicMarker);
+        mechanicMarker = null;
+      }
+      document.getElementById('tracking-status-bar').classList.add('hidden');
+      document.getElementById('map-start-track-btn').classList.remove('hidden');
+
+      // Reset arrival & OTP section
+      const arrBtn = document.getElementById('modal-arrived-btn');
+      const otpEntry = document.getElementById('modal-otp-entry');
+      const otpInput = document.getElementById('modal-otp-input');
+      const otpErr = document.getElementById('modal-otp-error');
+      if (arrBtn) arrBtn.classList.remove('hidden');
+      if (otpEntry) {
+        otpEntry.classList.add('hidden');
+        otpEntry.innerHTML = `
+          <p class="text-xs text-blue-900 font-bold mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:
+          </p>
+          <div class="flex gap-2">
+            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+              onkeydown="if(event.key==='Enter') modalVerifyOtp()"
+              class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <button onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
+              ✓ Verify
+            </button>
+          </div>
+          <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
+        `;
+      }
+      if (otpInput) otpInput.value = '';
+      if (otpErr) otpErr.classList.add('hidden');
+    }
+
+    // Modal OTP Handlers
+    function modalMechanicArrived() {
+      if (!activeTrackOrder) return;
+      mechanicArrived(activeTrackOrder);
+      const entry = document.getElementById('modal-otp-entry');
+      const btn = document.getElementById('modal-arrived-btn');
+      if (entry) {
+        const order = orders.find(o => o.id === activeTrackOrder);
+        entry.innerHTML = `
+          <p class="text-xs text-blue-900 font-bold mb-1.5 flex items-center justify-between">
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:</span>
+            <span class="text-[10px] text-blue-700 bg-blue-100 font-bold px-2 py-0.5 rounded-full border border-blue-200">
+              <i class="fa-solid fa-mobile-screen"></i> ग्राहक स्क्रीन पर है
+            </span>
+          </p>
+          <div class="flex gap-2">
+            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+              onkeydown="if(event.key==='Enter') modalVerifyOtp()"
+              class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            <button onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
+              ✓ Verify
+            </button>
+          </div>
+          <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
+        `;
+        entry.classList.remove('hidden');
+      }
+      if (btn) btn.classList.add('hidden');
+    }
+
+    function modalVerifyOtp() {
+      if (!activeTrackOrder) return;
+      const input = document.getElementById('modal-otp-input');
+      const errEl = document.getElementById('modal-otp-error');
+      const otp = input ? input.value.trim() : '';
+      if (!otp || otp.length < 4) {
+        if (errEl) { errEl.innerText = '⚠️ 4 अंकों का OTP डालें'; errEl.classList.remove('hidden'); }
+        return;
+      }
+      executeOtpVerification(activeTrackOrder, otp, input, errEl, true);
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('map-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeMapModal();
+    });
+
+    // ══ ORDER CANCELLATION LOGIC ══
+    let orderIdToCancel = null;
+
+    function openCancelModal(orderId) {
+      orderIdToCancel = orderId;
+      const modal = document.getElementById('cancel-order-modal');
+      const label = document.getElementById('cancel-modal-order-id');
+      const textarea = document.getElementById('cancel-reason-input');
+      if (label) label.innerText = `ऑर्डर ID: ${orderId}`;
+      if (textarea) textarea.value = 'वैन व्यस्त है / अन्य बुकिंग में है';
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCancelModal() {
+      orderIdToCancel = null;
+      const modal = document.getElementById('cancel-order-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function selectCancelReason(reason) {
+      const textarea = document.getElementById('cancel-reason-input');
+      if (textarea) textarea.value = reason;
+    }
+
+    function confirmOrderCancellation() {
+      if (!orderIdToCancel) return;
+      const textarea = document.getElementById('cancel-reason-input');
+      const reason = (textarea && textarea.value.trim()) ? textarea.value.trim() : 'एडमिन द्वारा ऑर्डर रद्द कर दिया गया';
+      
+      updateOrderStatus(orderIdToCancel, 'cancelled', reason);
+      closeCancelModal();
+    }
+
+    document.getElementById('cancel-order-modal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeCancelModal();
+    });
+  </script>
+
+  <!-- ══ ORDER CANCEL MODAL ══ -->
+  <div id="cancel-order-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-red-50/60">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-sm font-bold">
+            <i class="fa-solid fa-ban"></i>
+          </div>
+          <div>
+            <h2 class="font-extrabold text-slate-900 text-base">ऑर्डर रद्द (Cancel) करें</h2>
+            <p id="cancel-modal-order-id" class="text-xs text-slate-500 font-mono"></p>
+          </div>
+        </div>
+        <button onclick="closeCancelModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-2">रद्द करने का मुख्य कारण चुनें:</label>
+          <div class="grid grid-cols-1 gap-2">
+            <button type="button" onclick="selectCancelReason('वैन व्यस्त है / अन्य बुकिंग में है')" class="cancel-reason-btn text-left text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 transition flex items-center gap-2">
+              <i class="fa-solid fa-truck text-red-500"></i> वैन व्यस्त है / अन्य बुकिंग में है
+            </button>
+            <button type="button" onclick="selectCancelReason('लोकेशन सेवा क्षेत्र से बाहर है')" class="cancel-reason-btn text-left text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 transition flex items-center gap-2">
+              <i class="fa-solid fa-location-dot text-red-500"></i> लोकेशन सेवा क्षेत्र से बाहर है
+            </button>
+            <button type="button" onclick="selectCancelReason('ग्राहक से संपर्क नहीं हो पा रहा है')" class="cancel-reason-btn text-left text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 transition flex items-center gap-2">
+              <i class="fa-solid fa-phone-slash text-red-500"></i> ग्राहक से संपर्क नहीं हो पा रहा है
+            </button>
+            <button type="button" onclick="selectCancelReason('तकनीकी समस्या / मैकेनिक उपलब्ध नहीं')" class="cancel-reason-btn text-left text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 hover:border-red-400 hover:bg-red-50 text-slate-700 transition flex items-center gap-2">
+              <i class="fa-solid fa-triangle-exclamation text-red-500"></i> तकनीकी समस्या / मैकेनिक उपलब्ध नहीं
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">कस्टम मैसेज / विस्तृत कारण (ग्राहक को दिखेगा):</label>
+          <textarea id="cancel-reason-input" rows="2" placeholder="कारण लिखें..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-red-400 text-slate-800"></textarea>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-2 text-[11px] text-amber-800">
+          <i class="fa-solid fa-circle-info text-amber-600 mt-0.5"></i>
+          <span>यह कैंसलेशन और कारण ग्राहक की स्क्रीन पर तुरंत लाइव दिख जाएगा।</span>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2 justify-end">
+        <button onclick="closeCancelModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 transition">
+          रद्द न करें (Back)
+        </button>
+        <button onclick="confirmOrderCancellation()" class="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-ban"></i> हां, कैंसल करें
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
