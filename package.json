@@ -1,0 +1,21 @@
+{
+  "name": "puncturewala-admin",
+  "version": "1.0.0",
+  "description": "PunctureWala 24x7 - Dedicated Admin Dashboard and Real-Time Management Panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "puncture",
+    "puncturewala",
+    "roadside-assistance",
+    "admin-dashboard",
+    "mechanic"
+  ],
+  "author": "Santosh",
+  "license": "ISC",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

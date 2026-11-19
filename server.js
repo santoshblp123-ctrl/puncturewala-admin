@@ -14,11 +14,12 @@
 const http = require('http');
 const url  = require('url');
 const fs   = require('fs');
-const path = require('path');
+const nodePath = require('path');
 
-const PORT = 3002;
+const PORT = process.env.PORT || 3000;
 const CUSTOMER_PORT = 3000;
 const ADMIN_PORT = 3001;
+const RELAY_PORT = 3002;
 
 // In-memory store
 let orders = [
@@ -602,101 +603,152 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // ── Root landing on 3002 ─────────────────────────────────────────────────
-  if (path === '/' && method === 'GET') {
-    cors(res);
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(`<!DOCTYPE html>
-<html>
-<head><title>PunctureWala 24x7 Server</title><meta charset="utf-8"></head>
-<body style="font-family:sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-  <div style="background:#1e293b;padding:2rem;border-radius:12px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-    <h1 style="color:#f59e0b;margin-top:0;">🛠️ PunctureWala 24x7</h1>
-    <p>API & Real-Time Relay Server is Active (Port ${PORT})</p>
-    <div style="margin-top:1.5rem;display:flex;gap:1rem;justify-content:center;">
-      <a href="http://localhost:${CUSTOMER_PORT}" target="_blank" style="background:#2563eb;color:white;padding:0.75rem 1.25rem;border-radius:8px;text-decoration:none;font-weight:bold;">📱 Customer App (Port ${CUSTOMER_PORT})</a>
-      <a href="http://localhost:${ADMIN_PORT}" target="_blank" style="background:#059669;color:white;padding:0.75rem 1.25rem;border-radius:8px;text-decoration:none;font-weight:bold;">🖥️ Admin Panel (Port ${ADMIN_PORT})</a>
-    </div>
-  </div>
-</body>
-</html>`);
-    return;
+  // ── API 404 ──────────────────────────────────────────────────────────────
+  if (path.startsWith('/api/')) {
+    return json(res, { error: 'API endpoint not found' }, 404);
   }
 
-  // ── 404 ──────────────────────────────────────────────────────────────────
-  json(res, { error: 'Not found' }, 404);
+  // ── Static Files & Admin/Customer Routing (Unified for Hostinger) ────────
+  return handleStaticRequest(req, res, path);
 });
 
 const MIME_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js':   'application/javascript; charset=utf-8',
-  '.css':  'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png':  'image/png',
-  '.jpg':  'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif':  'image/gif',
-  '.svg':  'image/svg+xml',
-  '.ico':  'image/x-icon',
-  '.apk':  'application/vnd.android.package-archive',
+  '.html':        'text/html; charset=utf-8',
+  '.js':          'application/javascript; charset=utf-8',
+  '.css':         'text/css; charset=utf-8',
+  '.json':        'application/json; charset=utf-8',
+  '.png':         'image/png',
+  '.jpg':         'image/jpeg',
+  '.jpeg':        'image/jpeg',
+  '.gif':         'image/gif',
+  '.svg':         'image/svg+xml',
+  '.ico':         'image/x-icon',
+  '.apk':         'application/vnd.android.package-archive',
   '.webmanifest': 'application/manifest+json',
+  '.txt':         'text/plain; charset=utf-8',
 };
 
-function createStaticServer(rootDir, port, name) {
-  const staticServer = http.createServer((req, res) => {
+function sendFile(res, filePath) {
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('404 Not Found');
+      return;
+    }
+
+    const ext = nodePath.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
     cors(res);
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-
-    const parsed = url.parse(req.url);
-    let pathname = decodeURIComponent(parsed.pathname);
-    if (pathname === '/' || pathname === '') pathname = '/index.html';
-
-    const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
-    const filePath = path.join(rootDir, safePath);
-
-    fs.stat(filePath, (err, stats) => {
-      if (err || !stats.isFile()) {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('404 Not Found');
-        return;
-      }
-
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
-      res.writeHead(200, {
-        'Content-Type': contentType,
-        'Cache-Control': 'no-cache',
-        'Access-Control-Allow-Origin': '*'
-      });
-      fs.createReadStream(filePath).pipe(res);
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache',
+      'Access-Control-Allow-Origin': '*'
     });
+    fs.createReadStream(filePath).pipe(res);
   });
-
-  staticServer.listen(port, () => {
-    console.log(`  ✅ ${name} listening on http://localhost:${port}`);
-  });
-
-  staticServer.on('error', (err) => {
-    console.error(`  ❌ Error starting ${name} on port ${port}:`, err.message);
-  });
-
-  return staticServer;
 }
 
-// Start API Relay Server
+function handleStaticRequest(req, res, pathname) {
+  let decoded = '/';
+  try {
+    decoded = decodeURIComponent(pathname || '/');
+  } catch (e) {
+    decoded = pathname || '/';
+  }
+
+  // Route: /admin or /admin/ or /admin/index.html
+  if (decoded === '/admin' || decoded === '/admin/' || decoded === '/admin/index.html') {
+    const adminIndex = nodePath.join(__dirname, 'admin', 'index.html');
+    if (fs.existsSync(adminIndex)) {
+      return sendFile(res, adminIndex);
+    }
+    const rootIndex = nodePath.join(__dirname, 'index.html');
+    if (fs.existsSync(rootIndex)) {
+      return sendFile(res, rootIndex);
+    }
+  }
+
+  // Route: /admin/*
+  if (decoded.startsWith('/admin/')) {
+    const sub = decoded.slice(7);
+    const safeSub = nodePath.normalize(sub).replace(/^(\.\.[\/\\])+/, '');
+    const inAdmin = nodePath.join(__dirname, 'admin', safeSub);
+    if (fs.existsSync(inAdmin) && fs.statSync(inAdmin).isFile()) {
+      return sendFile(res, inAdmin);
+    }
+    const inRoot = nodePath.join(__dirname, safeSub);
+    if (fs.existsSync(inRoot) && fs.statSync(inRoot).isFile()) {
+      return sendFile(res, inRoot);
+    }
+  }
+
+  // Route: / or /index.html
+  if (decoded === '/' || decoded === '/index.html') {
+    const rootIndex = nodePath.join(__dirname, 'index.html');
+    if (fs.existsSync(rootIndex)) {
+      return sendFile(res, rootIndex);
+    }
+    const adminIndex = nodePath.join(__dirname, 'admin', 'index.html');
+    if (fs.existsSync(adminIndex)) {
+      return sendFile(res, adminIndex);
+    }
+  }
+
+  // Static files in root or admin directory
+  const safePath = nodePath.normalize(decoded).replace(/^(\.\.[\/\\])+/, '');
+  const candidateRoot = nodePath.join(__dirname, safePath);
+  if (fs.existsSync(candidateRoot) && fs.statSync(candidateRoot).isFile()) {
+    return sendFile(res, candidateRoot);
+  }
+  const candidateAdmin = nodePath.join(__dirname, 'admin', safePath);
+  if (fs.existsSync(candidateAdmin) && fs.statSync(candidateAdmin).isFile()) {
+    return sendFile(res, candidateAdmin);
+  }
+
+  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end('404 Not Found');
+}
+
+// Start Main Unified Server (process.env.PORT on Hostinger or 3000 locally)
 server.listen(PORT, () => {
   console.log('');
   console.log('  ╔════════════════════════════════════════════════════════════╗');
-  console.log('  ║              PunctureWala 24x7 — Live Servers              ║');
+  console.log('  ║              PunctureWala 24x7 — Unified Server            ║');
   console.log('  ╠════════════════════════════════════════════════════════════╣');
-  console.log(`  ║  🚀 Relay API Server : http://localhost:${PORT}                ║`);
-  console.log(`  ║  📱 Customer App     : http://localhost:${CUSTOMER_PORT}                ║`);
-  console.log(`  ║  🖥️  Admin Panel      : http://localhost:${ADMIN_PORT}                ║`);
+  console.log(`  ║  🚀 Server Active    : http://localhost:${PORT}                ║`);
+  console.log(`  ║  📱 Customer App     : http://localhost:${PORT}/               ║`);
+  console.log(`  ║  🖥️  Admin Dashboard  : http://localhost:${PORT}/admin          ║`);
+  console.log(`  ║  ⚡ API & SSE Relay  : http://localhost:${PORT}/api/*          ║`);
   console.log('  ╚════════════════════════════════════════════════════════════╝');
   console.log('');
 });
 
-// Start Static Servers
-createStaticServer(__dirname, CUSTOMER_PORT, 'Customer App');
-createStaticServer(path.join(__dirname, 'admin'), ADMIN_PORT, 'Admin Panel');
+// Backward-compatibility listeners for local development only
+if (!process.env.PORT) {
+  try {
+    const adminServer = http.createServer((req, res) => {
+      const p = url.parse(req.url).pathname;
+      if (p.startsWith('/api/')) {
+        server.emit('request', req, res);
+      } else {
+        const adminIndex = nodePath.join(__dirname, 'admin', 'index.html');
+        if ((p === '/' || p === '/index.html') && fs.existsSync(adminIndex)) {
+          sendFile(res, adminIndex);
+        } else {
+          handleStaticRequest(req, res, p.startsWith('/admin') ? p : '/admin' + p);
+        }
+      }
+    });
+    adminServer.on('error', (e) => console.log('  (Port 3001 fallback skipped:', e.message, ')'));
+    adminServer.listen(3001, () => console.log('  🖥️  Admin Panel also on http://localhost:3001'));
+  } catch (e) {}
+
+  try {
+    const relayServer = http.createServer((req, res) => {
+      server.emit('request', req, res);
+    });
+    relayServer.on('error', (e) => console.log('  (Port 3002 fallback skipped:', e.message, ')'));
+    relayServer.listen(3002, () => console.log('  ⚡ API Relay also on http://localhost:3002'));
+  } catch (e) {}
+}

@@ -10,11 +10,15 @@ Dedicated Admin Dashboard and Management Portal for **PunctureWala 24x7** On-Dem
 - 📞 **Dynamic Call Banner**: Update customer hotline numbers and emergency promos in real time.
 - 💰 **Rate Card & Inventory Management**: Set vehicle puncture rates and track tyre inventory.
 
-## 💻 Local Setup & Running:
+## 💻 Hostinger & Production Deployment:
+- **Single Port Unified Architecture**: Fully compatible with Hostinger Node.js environments (`process.env.PORT`).
+- **Web Routes**:
+  - `/admin` or `/` : Admin Dashboard
+  - `/api/*` : Live SSE & REST Relay API
+
+## 💻 Local Setup:
 ```bash
-# Start server
-node server.js
+npm install
+npm start
 ```
-- Admin Dashboard runs at: `http://localhost:3001`
-- Customer App runs at: `http://localhost:3000`
-- Relay Server runs at: `http://localhost:3002`
+- Unified Access: `http://localhost:3000/admin` (or `http://localhost:3001`)
