@@ -24,6 +24,7 @@ const RELAY_PORT = 3002;
 // Persistent disk storage
 const DATA_DIR = nodePath.join(__dirname, 'data');
 const ORDERS_FILE = nodePath.join(DATA_DIR, 'orders.json');
+const USERS_FILE = nodePath.join(DATA_DIR, 'users.json');
 
 function saveOrdersToDisk() {
   try {
@@ -34,6 +35,25 @@ function saveOrdersToDisk() {
 
 // In-memory store (starts completely clean, loads from disk if present)
 let orders = [];
+let users = [];
+
+function saveUsersToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function loadUsersFromDisk() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const raw = fs.readFileSync(USERS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) users = parsed;
+    }
+  } catch(e) {}
+}
+loadUsersFromDisk();
 
 function loadOrdersFromDisk() {
   try {
@@ -160,6 +180,20 @@ const server = http.createServer(async (req, res) => {
     };
     orders.unshift(order);
     saveOrdersToDisk();
+
+    // Link and increment user total orders
+    const custPhone = String(body.phone || '').trim();
+    const custName = String(body.customer || '').trim();
+    const cleanPhone = custPhone.replace(/\D/g, '').slice(-10);
+    let matchingUser = users.find(u => {
+      const uPhone = String(u.phone || '').replace(/\D/g, '').slice(-10);
+      return (cleanPhone && uPhone && uPhone === cleanPhone) || (custName && custName !== 'अज्ञात ग्राहक' && u.name === custName);
+    });
+    if (matchingUser) {
+      matchingUser.totalOrders = (matchingUser.totalOrders || 0) + 1;
+      saveUsersToDisk();
+      pushToAdmin('all-users', users);
+    }
 
     // Save new vehicle model if not already in list
     if (order.vehicleModel && order.vehicleModel.trim()) {
@@ -295,6 +329,87 @@ const server = http.createServer(async (req, res) => {
     pushToAdmin('order-deleted', { orderId });
     console.log(`[DELETE] Order ${orderId} deleted permanently`);
     return json(res, { success: true, orderId });
+  }
+
+  // ── POST /api/user-login (Track registered / logged-in users) ─────────────
+  if (path === '/api/user-login' && method === 'POST') {
+    const body = await readBody(req);
+    const email = String(body.email || '').trim().toLowerCase();
+    const phone = String(body.phone || '').trim();
+    const uid = String(body.uid || '').trim();
+    const name = String(body.name || '').trim() || (email ? email.split('@')[0] : 'ग्राहक');
+    const photoURL = String(body.photoURL || body.picture || '').trim();
+    const provider = String(body.provider || (email ? 'google' : 'phone')).trim();
+    const device = String(body.device || 'Android App').trim();
+
+    let existing = null;
+    if (uid) {
+      existing = users.find(u => u.uid === uid);
+    }
+    if (!existing && email) {
+      existing = users.find(u => u.email && u.email.toLowerCase() === email);
+    }
+    if (!existing && phone) {
+      existing = users.find(u => u.phone && u.phone === phone);
+    }
+
+    const now = Date.now();
+    if (existing) {
+      existing.lastLogin = now;
+      existing.loginCount = (existing.loginCount || 1) + 1;
+      if (name && name !== 'ग्राहक') existing.name = name;
+      if (photoURL) existing.photoURL = photoURL;
+      if (phone && !existing.phone) existing.phone = phone;
+      if (email && !existing.email) existing.email = email;
+      existing.provider = provider || existing.provider;
+      existing.device = device || existing.device;
+    } else {
+      const newUser = {
+        id: 'USR-' + (1001 + users.length),
+        uid: uid || ('usr_' + now),
+        name,
+        email,
+        phone,
+        photoURL,
+        provider,
+        firstLogin: now,
+        lastLogin: now,
+        loginCount: 1,
+        totalOrders: 0,
+        device
+      };
+      users.unshift(newUser);
+      existing = newUser;
+    }
+
+    saveUsersToDisk();
+    pushToAdmin('all-users', users);
+    console.log(`[USER LOGIN] ${existing.name} (${existing.provider}) - Total users: ${users.length}`);
+    return json(res, { success: true, user: existing, totalUsers: users.length });
+  }
+
+  // ── GET /api/users (Admin gets all logged-in users) ───────────────────────
+  if (path === '/api/users' && method === 'GET') {
+    return json(res, {
+      success: true,
+      users,
+      total: users.length,
+      googleUsers: users.filter(u => u.provider === 'google').length,
+      phoneUsers: users.filter(u => u.provider === 'phone').length
+    });
+  }
+
+  // ── POST /api/delete-user (Admin removes a user) ──────────────────────────
+  if (path === '/api/delete-user' && method === 'POST') {
+    const body = await readBody(req);
+    const userId = body.id || body.userId || body.uid;
+    if (userId) {
+      users = users.filter(u => u.id !== userId && u.uid !== userId);
+      saveUsersToDisk();
+      pushToAdmin('all-users', users);
+      console.log(`[DELETE USER] User ${userId} removed`);
+    }
+    return json(res, { success: true, users, total: users.length });
   }
 
   // ── POST /api/feedback  (Customer submits star rating & feedback) ───────
@@ -482,6 +597,20 @@ const server = http.createServer(async (req, res) => {
       };
       orders.unshift(order);
     saveOrdersToDisk();
+
+    // Link and increment user total orders
+    const custPhone = String(body.phone || '').trim();
+    const custName = String(body.customer || '').trim();
+    const cleanPhone = custPhone.replace(/\D/g, '').slice(-10);
+    let matchingUser = users.find(u => {
+      const uPhone = String(u.phone || '').replace(/\D/g, '').slice(-10);
+      return (cleanPhone && uPhone && uPhone === cleanPhone) || (custName && custName !== 'अज्ञात ग्राहक' && u.name === custName);
+    });
+    if (matchingUser) {
+      matchingUser.totalOrders = (matchingUser.totalOrders || 0) + 1;
+      saveUsersToDisk();
+      pushToAdmin('all-users', users);
+    }
     } else {
       order.status = body.status;
       if (body.reason) order.cancelReason = body.reason;

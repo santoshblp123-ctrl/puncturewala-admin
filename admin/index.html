@@ -88,6 +88,10 @@
         <i class="fa-solid fa-clipboard-list w-4"></i> बुकिंग ऑर्डर
         <span id="order-badge" class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">3</span>
       </button>
+      <button onclick="showPanel('panel-users')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
+        <i class="fa-solid fa-users w-4 text-amber-400"></i> यूजर / कस्टमर डेटा
+        <span id="user-badge" class="ml-auto bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+      </button>
       <button onclick="showPanel('panel-map')" class="sidebar-link w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-white">
         <i class="fa-solid fa-map-location-dot w-4"></i> लाइव वैन मैप
       </button>
@@ -218,7 +222,7 @@
 
 
         <!-- KPI Cards (Real-time dynamic metrics: starts at 0, increases with real orders) -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
             <div class="flex items-center justify-between mb-3">
               <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-clipboard-check"></i></div>
@@ -250,6 +254,14 @@
             </div>
             <p id="kpi-cancelled" class="text-2xl font-black text-red-600">0</p>
             <p class="text-xs text-slate-500 font-medium">रद्द बुकिंग (देखें →)</p>
+          </div>
+          <div onclick="showPanel('panel-users')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 cursor-pointer hover:border-amber-400 transition hover:shadow-md">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-users"></i></div>
+              <span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md">यूजर डेटा</span>
+            </div>
+            <p id="kpi-users-count" class="text-2xl font-black text-slate-900">0</p>
+            <p class="text-xs text-slate-500 font-medium">लॉगिन ग्राहक (देखें →)</p>
           </div>
           <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
             <div class="flex items-center justify-between mb-3">
@@ -350,6 +362,95 @@
         </div>
 
         <div id="orders-list" class="space-y-3"></div>
+      </div>
+
+      <!-- ===== 2B. USERS / CUSTOMER DATA PANEL ===== -->
+      <div id="panel-users" class="hidden space-y-5">
+        <!-- Header Banner & Refresh -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-2xl p-4 sm:p-5 text-white border border-slate-700 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-black text-base sm:text-lg">रजिस्टर्ड ग्राहक & लॉगिन डेटा</h3>
+                <span id="user-total-badge" class="bg-amber-400 text-slate-950 text-xs px-2 py-0.5 rounded-full font-black">0</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">देखें कितने ग्राहकों ने ऐप में Google या मोबाइल नंबर से लॉगिन किया है</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button onclick="fetchUsers(true)" class="flex-1 sm:flex-initial bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
+              <i class="fa-solid fa-rotate text-amber-400"></i>
+              <span>रिफ्रेश डेटा</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KPI Summary Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg border border-amber-100 shrink-0">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold text-slate-500">कुल लॉगिन यूजर्स</p>
+              <h4 id="stat-total-users" class="text-xl font-black text-slate-900">0</h4>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg border border-blue-100 shrink-0">
+              <i class="fa-brands fa-google"></i>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold text-slate-500">Google लॉगिन</p>
+              <h4 id="stat-google-users" class="text-xl font-black text-slate-900">0</h4>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 shrink-0">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold text-slate-500">फ़ोन लॉगिन</p>
+              <h4 id="stat-phone-users" class="text-xl font-black text-slate-900">0</h4>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg border border-indigo-100 shrink-0">
+              <i class="fa-solid fa-calendar-check"></i>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold text-slate-500">आज एक्टिव</p>
+              <h4 id="stat-today-users" class="text-xl font-black text-slate-900">0</h4>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Controls -->
+        <div class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+          <div class="relative w-full md:w-80">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="user-search-input" oninput="filterUsersList()" placeholder="नाम, ईमेल या मोबाइल से खोजें..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition">
+          </div>
+          <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <button onclick="setUserFilter('all')" id="ufilter-all" class="ufilter-btn bg-slate-900 text-white text-xs px-3.5 py-1.5 rounded-full font-bold shadow-sm whitespace-nowrap">सभी (<span id="count-all-users">0</span>)</button>
+            <button onclick="setUserFilter('google')" id="ufilter-google" class="ufilter-btn bg-white border border-slate-300 text-slate-600 text-xs px-3.5 py-1.5 rounded-full font-semibold whitespace-nowrap flex items-center gap-1.5">
+              <i class="fa-brands fa-google text-blue-500 text-[11px]"></i> <span>Google (<span id="count-google-users">0</span>)</span>
+            </button>
+            <button onclick="setUserFilter('phone')" id="ufilter-phone" class="ufilter-btn bg-white border border-slate-300 text-slate-600 text-xs px-3.5 py-1.5 rounded-full font-semibold whitespace-nowrap flex items-center gap-1.5">
+              <i class="fa-solid fa-mobile-screen-button text-emerald-500 text-[11px]"></i> <span>फ़ोन (<span id="count-phone-users">0</span>)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Users Table & Card Container -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div id="users-table-container">
+            <!-- Table and cards will be dynamically injected here -->
+          </div>
+        </div>
       </div>
 
     <!-- Live Location Map Panel with customer pins -->
@@ -1115,6 +1216,34 @@
         } catch(err){}
       });
 
+      // 👥 All Users SSE Broadcast
+      sse.addEventListener('all-users', e => {
+        try {
+          const serverUsers = JSON.parse(e.data);
+          if (Array.isArray(serverUsers)) {
+            appUsers = serverUsers;
+            updateUsersUI();
+          }
+        } catch(err){}
+      });
+
+      // 👤 User Login Event
+      sse.addEventListener('user-login', e => {
+        try {
+          const user = JSON.parse(e.data);
+          if (user) {
+            const idx = appUsers.findIndex(u => (u.uid && u.uid === user.uid) || (u.id && u.id === user.id));
+            if (idx !== -1) {
+              appUsers[idx] = user;
+            } else {
+              appUsers.unshift(user);
+            }
+            updateUsersUI();
+            showToast(`👤 नया ग्राहक लॉगिन: ${user.name} (${user.provider === 'google' ? 'Google' : 'फ़ोन'})`);
+          }
+        } catch(err){}
+      });
+
       sse.onerror = () => {
         console.warn('[SSE] Stream closed or offline — auto reconnecting...');
         try { sse.close(); } catch(e){}
@@ -1165,6 +1294,288 @@
           }
         })
         .catch(() => {});
+    }
+
+    // ── Drop a red pin for customer on simulated map ──────────────────────
+    // ══════════════════════════════════════════════
+    //  REGISTERED USERS & LOGIN TRACKING SYSTEM
+    // ══════════════════════════════════════════════
+    let appUsers = [];
+    let activeUserFilter = 'all';
+
+    function fetchUsers(showFeedback = false) {
+      fetch(`${SERVER}/api/users`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && Array.isArray(data.users)) {
+            appUsers = data.users;
+            updateUsersUI();
+            if (showFeedback) {
+              showToast(`✅ यूजर डेटा रिफ्रेश हुआ: कुल ${appUsers.length} ग्राहक`);
+            }
+          }
+        })
+        .catch(err => {
+          if (showFeedback) showToast('⚠️ सर्वर से यूजर डेटा लोड नहीं हो पाया');
+        });
+    }
+
+    function updateUsersUI() {
+      // 1. Update KPI stats and badges
+      const total = appUsers.length;
+      const googleCount = appUsers.filter(u => u.provider === 'google').length;
+      const phoneCount = appUsers.filter(u => u.provider === 'phone').length;
+      const startOfDay = new Date().setHours(0,0,0,0);
+      const todayCount = appUsers.filter(u => (u.lastLogin || 0) >= startOfDay).length;
+
+      const userBadge = document.getElementById('user-badge');
+      if (userBadge) {
+        userBadge.innerText = total;
+        userBadge.style.display = total > 0 ? 'inline-block' : 'none';
+      }
+      const kpiUsersCount = document.getElementById('kpi-users-count');
+      if (kpiUsersCount) kpiUsersCount.innerText = total;
+
+      const userTotalBadge = document.getElementById('user-total-badge');
+      if (userTotalBadge) userTotalBadge.innerText = total;
+
+      const statTotal = document.getElementById('stat-total-users');
+      if (statTotal) statTotal.innerText = total;
+      const statGoogle = document.getElementById('stat-google-users');
+      if (statGoogle) statGoogle.innerText = googleCount;
+      const statPhone = document.getElementById('stat-phone-users');
+      if (statPhone) statPhone.innerText = phoneCount;
+      const statToday = document.getElementById('stat-today-users');
+      if (statToday) statToday.innerText = todayCount;
+
+      const countAll = document.getElementById('count-all-users');
+      if (countAll) countAll.innerText = total;
+      const countGoogle = document.getElementById('count-google-users');
+      if (countGoogle) countGoogle.innerText = googleCount;
+      const countPhone = document.getElementById('count-phone-users');
+      if (countPhone) countPhone.innerText = phoneCount;
+
+      // 2. Render table / list
+      renderUsersList();
+    }
+
+    function setUserFilter(filter) {
+      activeUserFilter = filter;
+      document.querySelectorAll('.ufilter-btn').forEach(btn => {
+        btn.classList.remove('bg-slate-900', 'text-white', 'shadow-sm');
+        btn.classList.add('bg-white', 'border', 'border-slate-300', 'text-slate-600');
+      });
+      const activeBtn = document.getElementById(`ufilter-${filter}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-white', 'border', 'border-slate-300', 'text-slate-600');
+        activeBtn.classList.add('bg-slate-900', 'text-white', 'shadow-sm');
+      }
+      renderUsersList();
+    }
+
+    function filterUsersList() {
+      renderUsersList();
+    }
+
+    function formatRelativeTime(ts) {
+      if (!ts) return 'अज्ञात';
+      const diffMs = Date.now() - ts;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMins < 1) return 'अभी-अभी';
+      if (diffMins < 60) return `${diffMins} मिनट पहले`;
+      if (diffHours < 24) return `${diffHours} घंटे पहले`;
+      if (diffDays === 1) return 'कल';
+      return `${diffDays} दिन पहले`;
+    }
+
+    function formatFullDate(ts) {
+      if (!ts) return 'N/A';
+      const d = new Date(ts);
+      return d.toLocaleDateString('hi-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderUsersList() {
+      const container = document.getElementById('users-table-container');
+      if (!container) return;
+
+      const searchKeyword = (document.getElementById('user-search-input')?.value || '').trim().toLowerCase();
+
+      let filtered = appUsers.filter(u => {
+        if (activeUserFilter === 'google' && u.provider !== 'google') return false;
+        if (activeUserFilter === 'phone' && u.provider !== 'phone') return false;
+
+        if (searchKeyword) {
+          const name = String(u.name || '').toLowerCase();
+          const email = String(u.email || '').toLowerCase();
+          const phone = String(u.phone || '').toLowerCase();
+          const id = String(u.id || '').toLowerCase();
+          if (!name.includes(searchKeyword) && !email.includes(searchKeyword) && !phone.includes(searchKeyword) && !id.includes(searchKeyword)) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 px-4 bg-slate-50/50">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-100/70 text-amber-600 flex items-center justify-center text-2xl shadow-inner">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <h4 class="font-extrabold text-slate-800 text-base">
+              ${searchKeyword ? 'खोज के अनुसार कोई यूजर नहीं मिला' : 'अभी तक कोई नया यूजर लॉगिन नहीं हुआ'}
+            </h4>
+            <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              ${searchKeyword ? 'कृपया नाम, ईमेल या फ़ोन नंबर सही दर्ज करके दोबारा खोजें।' : 'जैसे ही ग्राहक Android ऐप या वेबसाइट पर Google खाते या फ़ोन नंबर से लॉगिन करेगा, उसका नाम, ईमेल, फ़ोन और लॉगिन का समय यहाँ रियल-टाइम में जुड़ जाएगा।'}
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      // Responsive Table (Desktop) + Card View (Mobile)
+      container.innerHTML = `
+        <!-- Desktop Table (md and above) -->
+        <div class="hidden md:block">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                <th class="px-4 py-3">ग्राहक / यूजर</th>
+                <th class="px-4 py-3">संपर्क विवरण</th>
+                <th class="px-4 py-3">लॉगिन प्रकार</th>
+                <th class="px-4 py-3">पहला लॉगिन</th>
+                <th class="px-4 py-3">अंतिम सक्रियता</th>
+                <th class="px-4 py-3 text-center">विजिट्स</th>
+                <th class="px-4 py-3 text-center">कुल बुकिंग</th>
+                <th class="px-4 py-3 text-right">एक्शन</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${filtered.map(u => {
+                const initials = (u.name || 'ग्राहक').slice(0, 2).toUpperCase();
+                const avatar = u.photoURL
+                  ? `<img src="${u.photoURL}" alt="${u.name}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-9 h-9 rounded-full bg-amber-500 text-white font-bold flex items-center justify-center text-xs\\'>${initials}</div>'">`
+                  : `<div class="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-amber-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">${initials}</div>`;
+
+                const providerBadge = u.provider === 'google'
+                  ? `<span class="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5"><i class="fa-brands fa-google text-blue-600 text-xs"></i> Google</span>`
+                  : `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5"><i class="fa-solid fa-mobile-screen-button text-emerald-600 text-xs"></i> फ़ोन</span>`;
+
+                return `
+                  <tr class="hover:bg-slate-50/80 transition">
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-3">
+                        ${avatar}
+                        <div>
+                          <p class="font-extrabold text-slate-900 text-xs">${u.name || 'ग्राहक'}</p>
+                          <p class="text-[10px] text-slate-400 font-mono">${u.id || 'USR'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="space-y-0.5">
+                        ${u.email ? `<p class="text-slate-700 font-medium flex items-center gap-1.5"><i class="fa-solid fa-envelope text-[10px] text-slate-400"></i> <a href="mailto:${u.email}" class="hover:underline">${u.email}</a></p>` : ''}
+                        ${u.phone ? `<p class="text-slate-800 font-bold flex items-center gap-1.5"><i class="fa-solid fa-phone text-[10px] text-emerald-600"></i> <a href="tel:${u.phone.replace(/[^0-9+]/g,'')}" class="text-emerald-700 hover:underline">${u.phone}</a></p>` : '<span class="text-slate-400 text-[11px]">—</span>'}
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      ${providerBadge}
+                      <p class="text-[9px] text-slate-400 mt-0.5">${u.device || 'Android App'}</p>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600 text-[11px]">
+                      ${formatFullDate(u.firstLogin)}
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="font-bold text-slate-800 text-[11px] block">${formatRelativeTime(u.lastLogin)}</span>
+                      <span class="text-[10px] text-slate-400">${formatFullDate(u.lastLogin).split(',')[1] || ''}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded-md text-[11px]">${u.loginCount || 1} बार</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span class="${(u.totalOrders > 0) ? 'bg-amber-100 text-amber-900 font-black' : 'bg-slate-100 text-slate-600 font-medium'} px-2 py-0.5 rounded-md text-[11px]">
+                        ${u.totalOrders || 0}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <button onclick="deleteUser('${u.id}', '${u.name}')" title="यूजर हटाएं" class="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Card View (sm and down) -->
+        <div class="md:hidden divide-y divide-slate-100">
+          ${filtered.map(u => {
+            const initials = (u.name || 'ग्राहक').slice(0, 2).toUpperCase();
+            const avatar = u.photoURL
+              ? `<img src="${u.photoURL}" alt="${u.name}" class="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-10 h-10 rounded-full bg-amber-500 text-white font-bold flex items-center justify-center text-xs\\'>${initials}</div>'">`
+              : `<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-amber-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">${initials}</div>`;
+
+            const providerBadge = u.provider === 'google'
+              ? `<span class="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1"><i class="fa-brands fa-google text-blue-600"></i> Google</span>`
+              : `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1"><i class="fa-solid fa-mobile-screen-button text-emerald-600"></i> फ़ोन</span>`;
+
+            return `
+              <div class="p-3.5 space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    ${avatar}
+                    <div>
+                      <h4 class="font-extrabold text-slate-900 text-xs">${u.name || 'ग्राहक'}</h4>
+                      <p class="text-[10px] text-slate-400 font-mono">${u.id || 'USR'} • ${u.device || 'Android'}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    ${providerBadge}
+                    <button onclick="deleteUser('${u.id}', '${u.name}')" title="यूजर हटाएं" class="text-slate-400 hover:text-red-600 p-1 rounded transition">
+                      <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-slate-50 p-2.5 rounded-xl space-y-1 text-xs">
+                  ${u.email ? `<p class="text-slate-700 font-medium flex items-center gap-2 truncate"><i class="fa-solid fa-envelope text-slate-400 text-[10px]"></i> <a href="mailto:${u.email}" class="hover:underline">${u.email}</a></p>` : ''}
+                  ${u.phone ? `<p class="text-slate-900 font-bold flex items-center gap-2"><i class="fa-solid fa-phone text-emerald-600 text-[10px]"></i> <a href="tel:${u.phone.replace(/[^0-9+]/g,'')}" class="text-emerald-700 hover:underline">${u.phone}</a></p>` : ''}
+                </div>
+
+                <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                  <span>अंतिम सक्रियता: <strong class="text-slate-800">${formatRelativeTime(u.lastLogin)}</strong></span>
+                  <span>विजिट: <strong class="text-slate-800">${u.loginCount || 1} बार</strong> • बुकिंग: <strong class="text-amber-600">${u.totalOrders || 0}</strong></span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function deleteUser(userId, userName) {
+      if (!confirm(`क्या आप ग्राहक "${userName || userId}" का लॉगिन रिकॉर्ड हटाना चाहते हैं?`)) return;
+      fetch(`${SERVER}/api/delete-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        appUsers = appUsers.filter(u => u.id !== userId && u.uid !== userId);
+        updateUsersUI();
+        showToast('🗑️ यूजर रिकॉर्ड हटा दिया गया।');
+      })
+      .catch(() => {
+        appUsers = appUsers.filter(u => u.id !== userId && u.uid !== userId);
+        updateUsersUI();
+        showToast('🗑️ यूजर हटा दिया गया।');
+      });
     }
 
     // ── Drop a red pin for customer on simulated map ──────────────────────
@@ -1604,6 +2015,9 @@
       fetchOrders(); // 🔄 Initial fetch
       setInterval(fetchOrders, 1000); // 🔄 Ultra-fast 1s sync (guarantees real-time on all proxies & mobile)
 
+      fetchUsers(); // 👥 Initial fetch registered users
+      setInterval(fetchUsers, 4000); // 👥 Sync registered users every 4 seconds
+
       // Fetch live van status on load
       fetch(`${SERVER}/api/van-status`)
         .then(r => r.json())
@@ -1634,13 +2048,14 @@
 
       document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active', 'text-amber-400'));
       const panelMap = {
-        'panel-dashboard': 0, 'panel-orders': 1, 'panel-map': 2,
-        'panel-mechanics': 3, 'panel-banner': 4, 'panel-shop': 5,
-        'panel-rates': 6, 'panel-inventory': 7
+        'panel-dashboard': 0, 'panel-orders': 1, 'panel-users': 2, 'panel-map': 3,
+        'panel-mechanics': 4, 'panel-banner': 5, 'panel-shop': 6,
+        'panel-rates': 7, 'panel-inventory': 8
       };
       const titles = {
         'panel-dashboard': ['डैशबोर्ड', 'आज का सारांश'],
         'panel-orders': ['बुकिंग ऑर्डर', 'सभी इनकमिंग और पूरे ऑर्डर'],
+        'panel-users': ['यूजर / ग्राहक डेटा', 'ऐप में लॉगिन करने वाले सभी ग्राहकों की सूची'],
         'panel-map': ['लाइव वैन मैप', 'वैन की रियल-टाइम लोकेशन'],
         'panel-mechanics': ['मैकेनिक टीम', 'स्टेटस और ड्यूटी मैनेजमेंट'],
         'panel-banner': ['कॉल विज्ञापन बैनर', 'ग्राहक ऐप पर ऑन-ड्यूटी मैकेनिक और विज्ञापन फ़ोन नंबर सेटिंग्स'],
@@ -1655,6 +2070,10 @@
       const idx = panelMap[panelId];
       const links = document.querySelectorAll('.sidebar-link');
       if (links[idx]) links[idx].classList.add('active');
+
+      if (panelId === 'panel-users') {
+        fetchUsers();
+      }
     }
 
     // ---- Orders Rendering ----
@@ -2006,6 +2425,9 @@
 
       const kpiCancelled = document.getElementById('kpi-cancelled');
       if (kpiCancelled) kpiCancelled.innerText = cancelled;
+
+      const kpiUsersCount = document.getElementById('kpi-users-count');
+      if (kpiUsersCount) kpiUsersCount.innerText = appUsers.length;
 
       const cancelledBadge = document.getElementById('cancelled-count-badge');
       if (cancelledBadge) cancelledBadge.innerText = cancelled;

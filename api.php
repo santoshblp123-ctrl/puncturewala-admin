@@ -21,11 +21,17 @@ if (!is_dir($dataDir)) {
 
 $ordersFile = $dataDir . '/orders.json';
 $stateFile  = $dataDir . '/state.json';
+$usersFile  = $dataDir . '/users.json';
 
 // Initialize default orders if not exists (starts fresh with 0 orders)
 if (!file_exists($ordersFile)) {
     $defaultOrders = [];
     file_put_contents($ordersFile, json_encode($defaultOrders, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+// Initialize default users if not exists
+if (!file_exists($usersFile)) {
+    file_put_contents($usersFile, json_encode([], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
 // Initialize default state if not exists
@@ -63,6 +69,18 @@ function getOrders() {
 function saveOrders($orders) {
     global $ordersFile;
     file_put_contents($ordersFile, json_encode($orders, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function getUsers() {
+    global $usersFile;
+    if (!file_exists($usersFile)) return [];
+    $data = file_get_contents($usersFile);
+    return json_decode($data, true) ?: [];
+}
+
+function saveUsers($users) {
+    global $usersFile;
+    file_put_contents($usersFile, json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
 function getState() {
@@ -396,6 +414,107 @@ if ($route === 'delete-order' && ($method === 'POST' || $method === 'GET')) {
         }
     }
     jsonResponse(['success' => true, 'orderId' => $orderId, 'orders' => getOrders()]);
+}
+
+// ── POST /api/user-login (Track registered / logged-in users) ─────────────
+if ($route === 'user-login' && $method === 'POST') {
+    $body = getRequestBody();
+    $email = strtolower(trim((string)($body['email'] ?? '')));
+    $phone = trim((string)($body['phone'] ?? ''));
+    $uid = trim((string)($body['uid'] ?? ''));
+    $name = trim((string)($body['name'] ?? ''));
+    if (empty($name)) {
+        $name = !empty($email) ? explode('@', $email)[0] : 'ग्राहक';
+    }
+    $photoURL = trim((string)($body['photoURL'] ?? ($body['picture'] ?? '')));
+    $provider = trim((string)($body['provider'] ?? (!empty($email) ? 'google' : 'phone')));
+    $device = trim((string)($body['device'] ?? 'Android App'));
+
+    $users = getUsers();
+    $found = false;
+    $now = time() * 1000;
+    $userObj = null;
+
+    foreach ($users as &$u) {
+        $match = false;
+        if (!empty($uid) && ($u['uid'] ?? '') === $uid) $match = true;
+        if (!$match && !empty($email) && strtolower($u['email'] ?? '') === $email) $match = true;
+        if (!$match && !empty($phone) && ($u['phone'] ?? '') === $phone) $match = true;
+
+        if ($match) {
+            $found = true;
+            $u['lastLogin'] = $now;
+            $u['loginCount'] = (int)($u['loginCount'] ?? 1) + 1;
+            if (!empty($name) && $name !== 'ग्राहक') $u['name'] = $name;
+            if (!empty($photoURL)) $u['photoURL'] = $photoURL;
+            if (!empty($phone) && empty($u['phone'])) $u['phone'] = $phone;
+            if (!empty($email) && empty($u['email'])) $u['email'] = $email;
+            if (!empty($provider)) $u['provider'] = $provider;
+            if (!empty($device)) $u['device'] = $device;
+            $userObj = $u;
+            break;
+        }
+    }
+
+    if (!$found) {
+        $newUser = [
+            'id' => 'USR-' . (1001 + count($users)),
+            'uid' => !empty($uid) ? $uid : ('usr_' . $now),
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'photoURL' => $photoURL,
+            'provider' => $provider,
+            'firstLogin' => $now,
+            'lastLogin' => $now,
+            'loginCount' => 1,
+            'totalOrders' => 0,
+            'device' => $device
+        ];
+        array_unshift($users, $newUser);
+        $userObj = $newUser;
+    }
+
+    saveUsers($users);
+    jsonResponse(['success' => true, 'user' => $userObj, 'totalUsers' => count($users)]);
+}
+
+// ── GET /api/users (Admin gets all logged-in users) ───────────────────────
+if ($route === 'users' && $method === 'GET') {
+    $users = getUsers();
+    $googleCount = 0;
+    $phoneCount = 0;
+    $todayCount = 0;
+    $startOfDay = strtotime('today') * 1000;
+
+    foreach ($users as $u) {
+        if (($u['provider'] ?? '') === 'google') $googleCount++;
+        if (($u['provider'] ?? '') === 'phone') $phoneCount++;
+        if (($u['lastLogin'] ?? 0) >= $startOfDay) $todayCount++;
+    }
+
+    jsonResponse([
+        'success' => true,
+        'users' => $users,
+        'total' => count($users),
+        'googleUsers' => $googleCount,
+        'phoneUsers' => $phoneCount,
+        'todayUsers' => $todayCount
+    ]);
+}
+
+// ── POST /api/delete-user (Admin removes a user) ──────────────────────────
+if ($route === 'delete-user' && ($method === 'POST' || $method === 'GET')) {
+    $body = getRequestBody();
+    $userId = $body['id'] ?? ($body['userId'] ?? ($body['uid'] ?? ($_GET['id'] ?? '')));
+    if ($userId) {
+        $users = getUsers();
+        $users = array_values(array_filter($users, function($u) use ($userId) {
+            return ($u['id'] ?? '') !== $userId && ($u['uid'] ?? '') !== $userId;
+        }));
+        saveUsers($users);
+    }
+    jsonResponse(['success' => true, 'users' => getUsers(), 'total' => count(getUsers())]);
 }
 
 // Default 404
