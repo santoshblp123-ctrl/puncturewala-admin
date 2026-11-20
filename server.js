@@ -21,6 +21,30 @@ const CUSTOMER_PORT = 3000;
 const ADMIN_PORT = 3001;
 const RELAY_PORT = 3002;
 
+// Persistent disk storage
+const DATA_DIR = nodePath.join(__dirname, 'data');
+const ORDERS_FILE = nodePath.join(DATA_DIR, 'orders.json');
+
+function saveOrdersToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function loadOrdersFromDisk() {
+  try {
+    if (fs.existsSync(ORDERS_FILE)) {
+      const raw = fs.readFileSync(ORDERS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        orders = parsed;
+      }
+    }
+  } catch(e) {}
+}
+loadOrdersFromDisk();
+
 // In-memory store
 let orders = [
   { id: 'PW-1041', customer: 'अमित शर्मा', phone: '98765-XXXXX', service: 'पंचर रिपेयर (कार)', vehicle: 'car', vehicleNumber: 'नहीं बताया', distanceKm: 4.5, distance: 4.5, amount: 317, status: 'pending', time: '13:38', otp: '4821', vip: false, timestamp: Date.now() - 60000 },
@@ -142,6 +166,7 @@ const server = http.createServer(async (req, res) => {
       timestamp:   Date.now(),
     };
     orders.unshift(order);
+    saveOrdersToDisk();
 
     // Save new vehicle model if not already in list
     if (order.vehicleModel && order.vehicleModel.trim()) {
@@ -434,6 +459,7 @@ const server = http.createServer(async (req, res) => {
         timestamp: Date.now()
       };
       orders.unshift(order);
+    saveOrdersToDisk();
     } else {
       order.status = body.status;
       if (body.reason) order.cancelReason = body.reason;
@@ -442,6 +468,8 @@ const server = http.createServer(async (req, res) => {
         if (otpStore[order.id]) otpStore[order.id].verified = false;
       }
     }
+
+    saveOrdersToDisk();
 
     // Real-time update to all Admin dashboards
     pushToAdmin('order-updated', order);

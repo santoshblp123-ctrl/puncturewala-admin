@@ -1,0 +1,24 @@
+# PunctureWala 24x7 — Hostinger Apache / LiteSpeed Configuration
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+
+# Block direct access to data folder
+RewriteRule ^data/ - [F,L]
+
+# Route /api/track/:orderId to api.php
+RewriteRule ^api/track/([^/]+)/?$ api.php?route=track/$1 [QSA,L]
+
+# Route all other /api/* to api.php
+RewriteRule ^api/([^/]+)/?$ api.php?route=$1 [QSA,L]
+RewriteRule ^api/?$ api.php [QSA,L]
+
+# Serve admin/index.html when /admin is requested without trailing slash
+RewriteRule ^admin$ admin/ [R=301,L]
+</IfModule>
+
+# Set correct MIME types for Web Manifest & APK
+<IfModule mod_mime.c>
+AddType application/manifest+json .webmanifest .json
+AddType application/vnd.android.package-archive .apk
+</IfModule>
