@@ -1389,9 +1389,9 @@
               <input id="live-card-otp-input-${order.id}" type="number" maxlength="4" placeholder="4-अंकों का OTP दर्ज करें"
                 onkeydown="if(event.key==='Enter') verifyLiveCardOtp('${order.id}')"
                 class="flex-1 bg-white border-2 border-blue-400 rounded-xl px-3 py-2 text-center font-black text-base tracking-widest text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-400 shadow-inner">
-              <button onclick="verifyLiveCardOtp('${order.id}')"
+              <button id="live-card-otp-btn-${order.id}" onclick="verifyLiveCardOtp('${order.id}')"
                 class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black px-4 py-2 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5 shadow-md shadow-blue-500/30 cursor-pointer">
-                <i class="fa-solid fa-circle-check"></i> OTP Verify करें
+                <i class="fa-solid fa-circle-check"></i> <span>OTP Verify करें</span>
               </button>
             </div>
             <p id="live-card-otp-error-${order.id}" class="text-red-600 text-[11px] font-bold mt-1.5 hidden"></p>
@@ -1749,9 +1749,9 @@
               <input id="otp-input-${o.id}" type="number" maxlength="4" placeholder="4-अंकों का OTP डालें"
                 onkeydown="if(event.key==='Enter') verifyOtp('${o.id}')"
                 class="flex-1 bg-white border-2 border-blue-300 rounded-xl px-3 py-2 text-center font-black text-base tracking-widest text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <button onclick="verifyOtp('${o.id}')"
-                class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow">
-                <i class="fa-solid fa-check"></i> Verify करें
+              <button id="otp-btn-${o.id}" onclick="verifyOtp('${o.id}')"
+                class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow cursor-pointer">
+                <i class="fa-solid fa-check"></i> <span>Verify करें</span>
               </button>
             </div>
             <p id="otp-error-${o.id}" class="text-red-600 text-[11px] font-bold mt-1 hidden"></p>
@@ -2101,7 +2101,7 @@
       executeOtpVerification(orderId, otp, input, errEl);
     }
 
-    function executeOtpVerification(orderId, otp, inputEl, errEl, isModal = false) {
+    async function executeOtpVerification(orderId, otp, inputEl, errEl, isModal = false) {
       const errTargets = [
         errEl,
         document.getElementById(`otp-error-${orderId}`),
@@ -2116,22 +2116,80 @@
         document.getElementById('modal-otp-input')
       ].filter(Boolean);
 
-      fetch(`${SERVER}/api/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, otp })
-      })
-      .then(async r => {
-        let data;
-        try {
-          data = await r.json();
-        } catch (e) {
-          data = { success: false, error: 'गलत OTP दर्ज किया गया है' };
+      const btnTargets = [
+        document.getElementById(`otp-btn-${orderId}`),
+        document.getElementById(`live-card-otp-btn-${orderId}`),
+        document.getElementById('modal-otp-btn')
+      ].filter(Boolean);
+
+      // ── ⏳ 1. SHOW LOADING STATE (Button Spinner + Disabled Input + Loading Message) ──
+      btnTargets.forEach(btn => {
+        if (!btn.dataset.originalHtml) {
+          btn.dataset.originalHtml = btn.innerHTML;
         }
-        return data;
-      })
-      .then(data => {
+        btn.disabled = true;
+        btn.classList.add('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
+        btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-sm"></i> <span>जाँच हो रही है...</span>`;
+      });
+
+      inputTargets.forEach(inp => {
+        inp.disabled = true;
+        inp.classList.add('opacity-75', 'bg-slate-100');
+        inp.classList.remove('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
+      });
+
+      errTargets.forEach(el => {
+        el.innerHTML = `
+          <div class="bg-blue-50 border border-blue-300 text-blue-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-2 shadow-sm animate-pulse">
+            <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-sm"></i>
+            <span>OTP सत्यापित किया जा रहा है, कृपया थोड़ा इंतजार करें...</span>
+          </div>`;
+        el.classList.remove('hidden');
+      });
+
+      // Smooth visual delay so loading animation is clearly visible
+      const minDelay = new Promise(r => setTimeout(r, 600));
+
+      try {
+        const fetchPromise = fetch(`${SERVER}/api/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, otp })
+        }).then(async r => {
+          let data;
+          try {
+            data = await r.json();
+          } catch (e) {
+            data = { success: false, error: 'गलत OTP दर्ज किया गया है' };
+          }
+          return data;
+        });
+
+        const [data] = await Promise.all([fetchPromise, minDelay]);
+
+        // Re-enable inputs
+        inputTargets.forEach(inp => {
+          inp.disabled = false;
+          inp.classList.remove('opacity-75', 'bg-slate-100');
+        });
+
         if (data && (data.success || data.verified)) {
+          // ── ✅ 2. SUCCESS STATE ──
+          btnTargets.forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'opacity-80', 'cursor-not-allowed', 'pointer-events-none');
+            btn.classList.add('bg-emerald-600', 'text-white');
+            btn.innerHTML = `<i class="fa-solid fa-check-double text-sm"></i> <span>सत्यापित!</span>`;
+          });
+
+          errTargets.forEach(el => {
+            el.innerHTML = `
+              <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+                <span>✅ OTP सही है! सर्विस सफलतापूर्वक शुरू हो गई।</span>
+              </div>`;
+            el.classList.remove('hidden');
+          });
+
           showToast(`✅ OTP Verified! सर्विस शुरू हो गई — ${orderId}`);
           const order = orders.find(o => o.id === orderId);
           if (order) {
@@ -2144,24 +2202,40 @@
               entry.innerHTML = `<p class="text-emerald-700 font-black text-sm text-center py-2">✅ OTP Verified! सर्विस सफलतापूर्वक शुरू हो गई।</p>`;
             }
           }
-          errTargets.forEach(el => el.classList.add('hidden'));
-          renderOrdersList();
-          renderRecentOrders();
-          updateKPIs();
-          if (order) {
-            if (activeLiveCardOrderId === order.id) {
-              updateLiveLocationCard(order);
+
+          setTimeout(() => {
+            errTargets.forEach(el => el.classList.add('hidden'));
+            renderOrdersList();
+            renderRecentOrders();
+            updateKPIs();
+            if (order) {
+              if (activeLiveCardOrderId === order.id) {
+                updateLiveLocationCard(order);
+              }
+              dropCustomerPin(order);
+              syncVanPosition();
             }
-            dropCustomerPin(order);
-            syncVanPosition();
-          }
+          }, 450);
+
         } else {
-          // ❌ Wrong OTP error handling
+          // ── ❌ 3. WRONG OTP / FAILURE STATE ──
+          btnTargets.forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
+            if (btn.dataset.originalHtml) {
+              btn.innerHTML = btn.dataset.originalHtml;
+            }
+          });
+
           const errorMsg = (data && data.error) ? data.error : 'गलत OTP दर्ज किया गया है! कृपया ग्राहक की स्क्रीन देखकर सही OTP डालें।';
           showToast(`❌ गलत OTP! कृपया सही OTP डालें।`, 4000);
 
           errTargets.forEach(el => {
-            el.innerHTML = `<div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5 shadow-sm animate-pulse"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i> <span>${errorMsg}</span></div>`;
+            el.innerHTML = `
+              <div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5 shadow-sm animate-pulse">
+                <i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i>
+                <span>${errorMsg}</span>
+              </div>`;
             el.classList.remove('hidden');
           });
 
@@ -2175,15 +2249,29 @@
             };
           });
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('OTP Verification Fetch Error:', err);
+        btnTargets.forEach(btn => {
+          btn.disabled = false;
+          btn.classList.remove('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
+          if (btn.dataset.originalHtml) {
+            btn.innerHTML = btn.dataset.originalHtml;
+          }
+        });
+        inputTargets.forEach(inp => {
+          inp.disabled = false;
+          inp.classList.remove('opacity-75', 'bg-slate-100');
+        });
         const errorMsg = 'गलत OTP दर्ज किया गया है या सर्वर से कनेक्शन में समस्या है';
         errTargets.forEach(el => {
-          el.innerHTML = `<div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-red-600"></i> <span>${errorMsg}</span></div>`;
+          el.innerHTML = `
+            <div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-triangle-exclamation text-red-600"></i>
+              <span>${errorMsg}</span>
+            </div>`;
           el.classList.remove('hidden');
         });
-      });
+      }
     }
 
     // ---- Simulate New Order ----    let orderCounter = 1042;
@@ -2565,9 +2653,9 @@
             <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <button onclick="modalVerifyOtp()"
-              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
-              ✓ Verify
+            <button id="modal-otp-btn" onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i> <span>Verify</span>
             </button>
           </div>
           <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
@@ -2610,9 +2698,9 @@
             <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <button onclick="modalVerifyOtp()"
-              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
-              ✓ Verify
+            <button id="modal-otp-btn" onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i> <span>Verify</span>
             </button>
           </div>
           <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
@@ -2721,9 +2809,9 @@
             <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <button onclick="modalVerifyOtp()"
-              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
-              ✓ Verify
+            <button id="modal-otp-btn" onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i> <span>Verify</span>
             </button>
           </div>
           <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
@@ -2752,9 +2840,9 @@
             <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <button onclick="modalVerifyOtp()"
-              class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow">
-              ✓ Verify
+            <button id="modal-otp-btn" onclick="modalVerifyOtp()"
+              class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i> <span>Verify</span>
             </button>
           </div>
           <p id="modal-otp-error" class="text-red-600 text-xs font-bold mt-1.5 hidden"></p>
