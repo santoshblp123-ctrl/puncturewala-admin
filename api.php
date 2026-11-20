@@ -345,5 +345,14 @@ if ($route === 'events' && $method === 'GET') {
     exit;
 }
 
+// ── POST/GET /api/clear-orders (Admin clears all orders) ──
+if ($route === 'clear-orders' && ($method === 'POST' || $method === 'GET')) {
+    saveOrders([]);
+    $state = getState();
+    $state['mechanicLocs'] = [];
+    saveState($state);
+    jsonResponse(['success' => true, 'message' => 'All orders cleared successfully', 'orders' => []]);
+}
+
 // Default 404
 jsonResponse(['error' => 'Endpoint not found', 'route' => $route], 404);

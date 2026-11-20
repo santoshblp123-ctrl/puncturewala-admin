@@ -32,28 +32,21 @@ function saveOrdersToDisk() {
   } catch(e) {}
 }
 
+// In-memory store (starts completely clean, loads from disk if present)
+let orders = [];
+
 function loadOrdersFromDisk() {
   try {
     if (fs.existsSync(ORDERS_FILE)) {
       const raw = fs.readFileSync(ORDERS_FILE, 'utf8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         orders = parsed;
       }
     }
   } catch(e) {}
 }
 loadOrdersFromDisk();
-
-// In-memory store
-let orders = [
-  { id: 'PW-1041', customer: 'अमित शर्मा', phone: '98765-XXXXX', service: 'पंचर रिपेयर (कार)', vehicle: 'car', vehicleNumber: 'नहीं बताया', distanceKm: 4.5, distance: 4.5, amount: 317, status: 'pending', time: '13:38', otp: '4821', vip: false, timestamp: Date.now() - 60000 },
-  { id: 'PW-1040', customer: 'प्रिया गुप्ता', phone: '99012-XXXXX', service: 'एयर रीफिल (बाइक)', vehicle: 'bike', vehicleNumber: 'DL-04-AB-1234', distanceKm: 2.1, distance: 2.1, amount: 182, status: 'active', time: '13:22', otp: '7192', vip: false, timestamp: Date.now() - 120000 },
-  { id: 'PW-1039', customer: 'राजेश वर्मा', phone: '91234-XXXXX', service: 'स्टेफनी चेंज (SUV)', vehicle: 'suv', vehicleNumber: 'HR-26-CD-5678', distanceKm: 6.3, distance: 6.3, amount: 526, status: 'pending', time: '13:15', otp: '5340', vip: true, timestamp: Date.now() - 180000 },
-  { id: 'PW-1038', customer: 'सुनीता पाल', phone: '90000-XXXXX', service: 'MRF टायर फिटिंग', vehicle: 'car', vehicleNumber: 'UP-16-EF-9012', distanceKm: 3.0, distance: 3.0, amount: 3445, status: 'done', time: '12:50', otp: '3219', vip: false, timestamp: Date.now() - 360000 },
-  { id: 'PW-1037', customer: 'मोहन लाल', phone: '88888-XXXXX', service: 'ट्यूब पंचर (बाइक)', vehicle: 'bike', vehicleNumber: 'DL-08-GH-3456', distanceKm: 1.8, distance: 1.8, amount: 270, status: 'done', time: '12:10', otp: '8492', vip: false, timestamp: Date.now() - 720000 },
-  { id: 'PW-1036', customer: 'दीपक तिवारी', phone: '77777-XXXXX', service: 'पंचर रिपेयर (बाइक)', vehicle: 'bike', vehicleNumber: 'HR-51-JK-7890', distanceKm: 5.0, distance: 5.0, amount: 255, status: 'pending', time: '11:45', otp: '6123', vip: false, timestamp: Date.now() - 1200000 },
-];
 let vanStatus       = { free: true, busyMinutes: 0 };
 let adminClients    = []; // SSE connections from Admin
 let customerClients = {}; // SSE connections from Customer { orderId: [res,...] }
@@ -267,12 +260,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── POST /api/clear-orders  (Admin clears all orders) ──────────────────
-  if (path === '/api/clear-orders' && method === 'POST') {
+  if (path === '/api/clear-orders' && (method === 'POST' || method === 'GET')) {
     orders = [];
     mechanicLocs = {};
+    saveOrdersToDisk();
     pushToAdmin('orders-cleared', {});
     console.log('[CLEAR] All orders cleared by admin');
-    return json(res, { success: true });
+    return json(res, { success: true, orders: [] });
   }
 
   // ── POST /api/feedback  (Customer submits star rating & feedback) ───────
