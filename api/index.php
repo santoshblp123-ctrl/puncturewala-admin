@@ -22,28 +22,9 @@ if (!is_dir($dataDir)) {
 $ordersFile = $dataDir . '/orders.json';
 $stateFile  = $dataDir . '/state.json';
 
-// Initialize default orders if not exists
+// Initialize default orders if not exists (starts fresh with 0 orders)
 if (!file_exists($ordersFile)) {
-    $defaultOrders = [
-        [
-            'id' => 'PW-1041', 'customer' => 'अमित शर्मा', 'phone' => '98765-XXXXX',
-            'service' => 'पंचर रिपेयर (कार)', 'vehicle' => 'car', 'vehicleModel' => 'नहीं बताया',
-            'distanceKm' => 4.5, 'distance' => 4.5, 'amount' => 317, 'status' => 'pending',
-            'time' => '13:38', 'otp' => '4821', 'vip' => false, 'timestamp' => (time() * 1000) - 60000
-        ],
-        [
-            'id' => 'PW-1040', 'customer' => 'प्रिया गुप्ता', 'phone' => '99012-XXXXX',
-            'service' => 'एयर रीफिल (बाइक)', 'vehicle' => 'bike', 'vehicleNumber' => 'DL-04-AB-1234',
-            'distanceKm' => 2.1, 'distance' => 2.1, 'amount' => 182, 'status' => 'active',
-            'time' => '13:22', 'otp' => '7192', 'vip' => false, 'timestamp' => (time() * 1000) - 120000
-        ],
-        [
-            'id' => 'PW-1039', 'customer' => 'राजेश वर्मा', 'phone' => '91234-XXXXX',
-            'service' => 'स्टेफनी चेंज (SUV)', 'vehicle' => 'suv', 'vehicleNumber' => 'HR-26-CD-5678',
-            'distanceKm' => 6.3, 'distance' => 6.3, 'amount' => 526, 'status' => 'pending',
-            'time' => '13:15', 'otp' => '5340', 'vip' => true, 'timestamp' => (time() * 1000) - 180000
-        ]
-    ];
+    $defaultOrders = [];
     file_put_contents($ordersFile, json_encode($defaultOrders, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
@@ -199,23 +180,50 @@ if ($route === 'order-status' && $method === 'POST') {
 // ── POST /api/verify-otp ────────────────────────────────
 if ($route === 'verify-otp' && $method === 'POST') {
     $body = getRequestBody();
-    $orderId = $body['orderId'] ?? '';
+    $orderId = trim((string)($body['orderId'] ?? ''));
     $inputOtp = trim((string)($body['otp'] ?? ''));
 
+    if (empty($orderId) || empty($inputOtp)) {
+        jsonResponse([
+            'success' => false,
+            'verified' => false,
+            'error' => 'Order ID और 4-अंकों का OTP दोनों आवश्यक हैं'
+        ], 200);
+    }
+
     $orders = getOrders();
+    $matched = false;
     foreach ($orders as &$o) {
         if ($o['id'] === $orderId) {
-            if ($o['otp'] === $inputOtp || $inputOtp === '1234') {
+            $matched = true;
+            $savedOtp = trim((string)($o['otp'] ?? ''));
+            // Check matching OTP or master test PIN '1234'
+            if (($savedOtp !== '' && $savedOtp === $inputOtp) || $inputOtp === '1234') {
                 $o['otpVerified'] = true;
                 $o['status'] = 'active'; // OTP verified -> work started
                 saveOrders($orders);
-                jsonResponse(['success' => true, 'verified' => true, 'order' => $o]);
+                jsonResponse([
+                    'success' => true,
+                    'verified' => true,
+                    'order' => $o
+                ], 200);
             } else {
-                jsonResponse(['success' => false, 'verified' => false, 'error' => 'गलत OTP दर्ज किया गया है'], 400);
+                jsonResponse([
+                    'success' => false,
+                    'verified' => false,
+                    'error' => 'गलत OTP दर्ज किया गया है! कृपया ग्राहक की स्क्रीन देखकर सही OTP डालें।'
+                ], 200);
             }
+            break;
         }
     }
-    jsonResponse(['error' => 'Order not found'], 404);
+    if (!$matched) {
+        jsonResponse([
+            'success' => false,
+            'verified' => false,
+            'error' => 'ऑर्डर नहीं मिला (Order ID अमान्य है)'
+        ], 200);
+    }
 }
 
 // ── GET/POST /api/van-status ────────────────────────────

@@ -899,10 +899,10 @@
 
     const SERVER = (function() {
       if (typeof window !== 'undefined' && window.location) {
-        if (window.location.protocol.startsWith('file')) return 'http://localhost:3000';
+        if (window.location.protocol.startsWith('file')) return 'https://puncherwala.in';
         return window.location.origin;
       }
-      return 'http://localhost:3000';
+      return 'https://puncherwala.in';
     })();
 
     // ── SSE: Connect to Live Server ────────────────────────────────────────
@@ -2102,14 +2102,36 @@
     }
 
     function executeOtpVerification(orderId, otp, inputEl, errEl, isModal = false) {
+      const errTargets = [
+        errEl,
+        document.getElementById(`otp-error-${orderId}`),
+        document.getElementById(`live-card-otp-error-${orderId}`),
+        document.getElementById('modal-otp-error')
+      ].filter(Boolean);
+
+      const inputTargets = [
+        inputEl,
+        document.getElementById(`otp-input-${orderId}`),
+        document.getElementById(`live-card-otp-input-${orderId}`),
+        document.getElementById('modal-otp-input')
+      ].filter(Boolean);
+
       fetch(`${SERVER}/api/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, otp })
       })
-      .then(r => r.json())
+      .then(async r => {
+        let data;
+        try {
+          data = await r.json();
+        } catch (e) {
+          data = { success: false, error: 'गलत OTP दर्ज किया गया है' };
+        }
+        return data;
+      })
       .then(data => {
-        if (data.success) {
+        if (data && (data.success || data.verified)) {
           showToast(`✅ OTP Verified! सर्विस शुरू हो गई — ${orderId}`);
           const order = orders.find(o => o.id === orderId);
           if (order) {
@@ -2122,6 +2144,7 @@
               entry.innerHTML = `<p class="text-emerald-700 font-black text-sm text-center py-2">✅ OTP Verified! सर्विस सफलतापूर्वक शुरू हो गई।</p>`;
             }
           }
+          errTargets.forEach(el => el.classList.add('hidden'));
           renderOrdersList();
           renderRecentOrders();
           updateKPIs();
@@ -2133,21 +2156,33 @@
             syncVanPosition();
           }
         } else {
-          if (errEl) {
-            errEl.innerText = `❌ ${data.error || 'गलत OTP'}`;
-            errEl.classList.remove('hidden');
-          }
-          if (inputEl) {
-            inputEl.value = '';
-            inputEl.focus();
-          }
+          // ❌ Wrong OTP error handling
+          const errorMsg = (data && data.error) ? data.error : 'गलत OTP दर्ज किया गया है! कृपया ग्राहक की स्क्रीन देखकर सही OTP डालें।';
+          showToast(`❌ गलत OTP! कृपया सही OTP डालें।`, 4000);
+
+          errTargets.forEach(el => {
+            el.innerHTML = `<div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5 shadow-sm animate-pulse"><i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i> <span>${errorMsg}</span></div>`;
+            el.classList.remove('hidden');
+          });
+
+          inputTargets.forEach(inp => {
+            inp.classList.add('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
+            inp.value = '';
+            inp.focus();
+            inp.oninput = () => {
+              inp.classList.remove('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
+              errTargets.forEach(el => el.classList.add('hidden'));
+            };
+          });
         }
       })
-      .catch(() => {
-        if (errEl) {
-          errEl.innerText = '❌ Server से जुड़ नहीं पाए';
-          errEl.classList.remove('hidden');
-        }
+      .catch(err => {
+        console.error('OTP Verification Fetch Error:', err);
+        const errorMsg = 'गलत OTP दर्ज किया गया है या सर्वर से कनेक्शन में समस्या है';
+        errTargets.forEach(el => {
+          el.innerHTML = `<div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-red-600"></i> <span>${errorMsg}</span></div>`;
+          el.classList.remove('hidden');
+        });
       });
     }
 
