@@ -1,4 +1,6 @@
 # PunctureWala 24x7 — Hostinger Apache / LiteSpeed Configuration
+DirectoryIndex index.html index.php
+
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteBase /
