@@ -2122,7 +2122,7 @@
         document.getElementById('modal-otp-btn')
       ].filter(Boolean);
 
-      // ── ⏳ 1. SHOW LOADING STATE (Button Spinner + Disabled Input + Loading Message) ──
+      // ── ⏳ 1. SHOW IN-CARD BUTTON & INPUT LOADING STATE ──
       btnTargets.forEach(btn => {
         if (!btn.dataset.originalHtml) {
           btn.dataset.originalHtml = btn.innerHTML;
@@ -2147,8 +2147,51 @@
         el.classList.remove('hidden');
       });
 
-      // Smooth visual delay so loading animation is clearly visible
-      const minDelay = new Promise(r => setTimeout(r, 600));
+      // ── ⏳ 2. OPEN DEDICATED FULL-SCREEN LOADING MODAL WITH RUNNING TIMER & PROGRESS BAR ──
+      const loadingModal = document.getElementById('otp-verify-loading-modal');
+      const timerEl = document.getElementById('otp-loading-timer');
+      const barEl = document.getElementById('otp-loading-bar');
+      const orderIdEl = document.getElementById('otp-loading-order-id');
+      const titleEl = document.getElementById('otp-loading-title');
+      const subtitleEl = document.getElementById('otp-loading-subtitle');
+      const iconWrap = document.getElementById('otp-loading-icon-wrap');
+      const hintEl = document.getElementById('otp-loading-hint');
+
+      if (orderIdEl) orderIdEl.innerText = orderId;
+      if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-shield-halved text-blue-400"></i> <span>OTP सत्यापन जारी है</span>`;
+      if (subtitleEl) subtitleEl.innerText = 'सुरक्षा कोड और सर्वर डेटाबेस से मिलान किया जा रहा है...';
+      if (hintEl) hintEl.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-blue-400 text-[10px]"></i> <span>जाँच प्रगति पर है, कृपया स्क्रीन न छोड़ें...</span>`;
+      if (iconWrap) {
+        iconWrap.innerHTML = `
+          <div class="absolute inset-0 rounded-full border-4 border-blue-500/30 border-t-blue-400 border-r-blue-400 animate-spin"></div>
+          <div class="w-14 h-14 rounded-2xl bg-blue-600/30 text-blue-400 flex items-center justify-center text-2xl shadow-inner border border-blue-400/40">
+            <i class="fa-solid fa-lock animate-pulse"></i>
+          </div>
+        `;
+      }
+      if (barEl) {
+        barEl.style.width = '15%';
+        barEl.className = 'h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-amber-400 rounded-full transition-all duration-300';
+      }
+      if (timerEl) timerEl.innerText = '0.0s';
+
+      if (loadingModal) {
+        loadingModal.classList.remove('hidden');
+        loadingModal.classList.add('flex');
+      }
+
+      const startTime = Date.now();
+      const timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (timerEl) timerEl.innerText = elapsed.toFixed(1) + 's';
+        if (barEl) {
+          const pct = Math.min(92, Math.round(15 + elapsed * 55));
+          barEl.style.width = pct + '%';
+        }
+      }, 75);
+
+      // Visible minimum delay (1.2s) so loading duration is clearly visible and readable
+      const minDelay = new Promise(r => setTimeout(r, 1200));
 
       try {
         const fetchPromise = fetch(`${SERVER}/api/verify-otp`, {
@@ -2166,6 +2209,10 @@
         });
 
         const [data] = await Promise.all([fetchPromise, minDelay]);
+        clearInterval(timerInterval);
+
+        const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+        if (timerEl) timerEl.innerText = totalElapsed;
 
         // Re-enable inputs
         inputTargets.forEach(inp => {
@@ -2174,7 +2221,28 @@
         });
 
         if (data && (data.success || data.verified)) {
-          // ── ✅ 2. SUCCESS STATE ──
+          // ── ✅ 3. SUCCESS STATE: PROGRESS 100% & CELEBRATION ──
+          if (barEl) {
+            barEl.style.width = '100%';
+            barEl.className = 'h-full bg-emerald-500 rounded-full transition-all duration-300';
+          }
+          if (titleEl) {
+            titleEl.innerHTML = `<span class="text-emerald-400 flex items-center justify-center gap-2"><i class="fa-solid fa-circle-check"></i> OTP सत्यापित हो गया!</span>`;
+          }
+          if (subtitleEl) {
+            subtitleEl.innerHTML = `<span class="text-emerald-300 font-bold">सत्यापन में समय: ${totalElapsed} • सर्विस सफलतापूर्वक चालू हो गई!</span>`;
+          }
+          if (hintEl) {
+            hintEl.innerHTML = `<i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> <span class="text-emerald-300">ग्राहक के पास वैन लाइव लोकेशन पर सेट हो गई है</span>`;
+          }
+          if (iconWrap) {
+            iconWrap.innerHTML = `
+              <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl shadow-lg border-2 border-emerald-400/60 animate-bounce-short">
+                <i class="fa-solid fa-check-double"></i>
+              </div>
+            `;
+          }
+
           btnTargets.forEach(btn => {
             btn.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'opacity-80', 'cursor-not-allowed', 'pointer-events-none');
             btn.classList.add('bg-emerald-600', 'text-white');
@@ -2185,7 +2253,7 @@
             el.innerHTML = `
               <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-2 shadow-sm">
                 <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
-                <span>✅ OTP सही है! सर्विस सफलतापूर्वक शुरू हो गई।</span>
+                <span>✅ OTP सही है (${totalElapsed})! सर्विस सफलतापूर्वक शुरू हो गई।</span>
               </div>`;
             el.classList.remove('hidden');
           });
@@ -2204,6 +2272,10 @@
           }
 
           setTimeout(() => {
+            if (loadingModal) {
+              loadingModal.classList.add('hidden');
+              loadingModal.classList.remove('flex');
+            }
             errTargets.forEach(el => el.classList.add('hidden'));
             renderOrdersList();
             renderRecentOrders();
@@ -2215,10 +2287,31 @@
               dropCustomerPin(order);
               syncVanPosition();
             }
-          }, 450);
+          }, 800);
 
         } else {
-          // ── ❌ 3. WRONG OTP / FAILURE STATE ──
+          // ── ❌ 4. WRONG OTP / FAILURE STATE ──
+          if (barEl) {
+            barEl.style.width = '100%';
+            barEl.className = 'h-full bg-red-500 rounded-full transition-all duration-300';
+          }
+          if (titleEl) {
+            titleEl.innerHTML = `<span class="text-red-400 flex items-center justify-center gap-2"><i class="fa-solid fa-circle-xmark"></i> गलत OTP दर्ज किया गया!</span>`;
+          }
+          if (subtitleEl) {
+            subtitleEl.innerHTML = `<span class="text-red-300 font-semibold">जाँच समय: ${totalElapsed} • कृपया ग्राहक की स्क्रीन देखकर सही OTP डालें।</span>`;
+          }
+          if (hintEl) {
+            hintEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400 text-[10px]"></i> <span class="text-red-300">सुरक्षा कोड मेल नहीं खाया</span>`;
+          }
+          if (iconWrap) {
+            iconWrap.innerHTML = `
+              <div class="w-16 h-16 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-3xl shadow-lg border-2 border-red-400/60 animate-bounce-short">
+                <i class="fa-solid fa-xmark"></i>
+              </div>
+            `;
+          }
+
           btnTargets.forEach(btn => {
             btn.disabled = false;
             btn.classList.remove('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
@@ -2230,27 +2323,39 @@
           const errorMsg = (data && data.error) ? data.error : 'गलत OTP दर्ज किया गया है! कृपया ग्राहक की स्क्रीन देखकर सही OTP डालें।';
           showToast(`❌ गलत OTP! कृपया सही OTP डालें।`, 4000);
 
-          errTargets.forEach(el => {
-            el.innerHTML = `
-              <div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5 shadow-sm animate-pulse">
-                <i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i>
-                <span>${errorMsg}</span>
-              </div>`;
-            el.classList.remove('hidden');
-          });
+          setTimeout(() => {
+            if (loadingModal) {
+              loadingModal.classList.add('hidden');
+              loadingModal.classList.remove('flex');
+            }
 
-          inputTargets.forEach(inp => {
-            inp.classList.add('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
-            inp.value = '';
-            inp.focus();
-            inp.oninput = () => {
-              inp.classList.remove('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
-              errTargets.forEach(el => el.classList.add('hidden'));
-            };
-          });
+            errTargets.forEach(el => {
+              el.innerHTML = `
+                <div class="bg-red-50 border-2 border-red-400 text-red-700 px-3 py-1.5 rounded-xl mt-1.5 font-bold text-xs flex items-center gap-1.5 shadow-sm animate-pulse">
+                  <i class="fa-solid fa-triangle-exclamation text-red-600 text-sm"></i>
+                  <span>${errorMsg}</span>
+                </div>`;
+              el.classList.remove('hidden');
+            });
+
+            inputTargets.forEach(inp => {
+              inp.classList.add('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
+              inp.value = '';
+              inp.focus();
+              inp.oninput = () => {
+                inp.classList.remove('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-400');
+                errTargets.forEach(el => el.classList.add('hidden'));
+              };
+            });
+          }, 950);
         }
       } catch (err) {
+        clearInterval(timerInterval);
         console.error('OTP Verification Fetch Error:', err);
+        if (loadingModal) {
+          loadingModal.classList.add('hidden');
+          loadingModal.classList.remove('flex');
+        }
         btnTargets.forEach(btn => {
           btn.disabled = false;
           btn.classList.remove('opacity-80', 'cursor-not-allowed', 'pointer-events-none');
@@ -2963,6 +3068,57 @@
           <i class="fa-solid fa-ban"></i> हां, कैंसल करें
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ 🔐 OTP VERIFICATION FULL-SCREEN LOADING MODAL ══ -->
+  <div id="otp-verify-loading-modal" class="hidden fixed inset-0 z-[100] items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fade-in">
+    <div class="bg-slate-900 border-2 border-blue-500/60 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl shadow-blue-500/20 text-white space-y-4 transform transition-all scale-100">
+      
+      <!-- Animated Status Icon -->
+      <div id="otp-loading-icon-wrap" class="relative w-20 h-20 mx-auto flex items-center justify-center">
+        <!-- Spinning Ring -->
+        <div class="absolute inset-0 rounded-full border-4 border-blue-500/30 border-t-blue-400 border-r-blue-400 animate-spin"></div>
+        <!-- Inner Glow Icon -->
+        <div class="w-14 h-14 rounded-2xl bg-blue-600/30 text-blue-400 flex items-center justify-center text-2xl shadow-inner border border-blue-400/40">
+          <i class="fa-solid fa-shield-halved animate-pulse"></i>
+        </div>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <div>
+        <h3 id="otp-loading-title" class="text-lg font-black tracking-tight text-white flex items-center justify-center gap-2">
+          <span>OTP सत्यापन जारी है</span>
+        </h3>
+        <p id="otp-loading-subtitle" class="text-xs text-blue-300 font-medium mt-1">
+          सुरक्षा पिन और सर्वर से जाँच की जा रही है...
+        </p>
+      </div>
+
+      <!-- Active Timer & Animated Progress Bar -->
+      <div class="bg-slate-800/90 rounded-2xl p-3.5 border border-slate-700/80 space-y-2">
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-slate-400 flex items-center gap-1.5 font-sans font-bold">
+            <i class="fa-solid fa-clock text-blue-400 text-[11px]"></i> जाँच समय:
+          </span>
+          <span id="otp-loading-timer" class="text-amber-400 font-black text-sm">0.0s</span>
+        </div>
+        <!-- Progress track -->
+        <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden p-0.5">
+          <div id="otp-loading-bar" class="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-amber-400 rounded-full w-[15%] transition-all duration-200"></div>
+        </div>
+        <p id="otp-loading-hint" class="text-[11px] text-slate-400 font-medium text-left flex items-center gap-1">
+          <i class="fa-solid fa-circle-info text-blue-400 text-[10px]"></i>
+          <span>कृपया 1-2 सेकंड प्रतीक्षा करें...</span>
+        </p>
+      </div>
+
+      <!-- Order ID Chip -->
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 text-[11px] font-mono text-slate-300 border border-slate-700">
+        <span>ऑर्डर ID:</span>
+        <strong id="otp-loading-order-id" class="text-amber-400">PW-1001</strong>
+      </div>
+
     </div>
   </div>
 </body>
