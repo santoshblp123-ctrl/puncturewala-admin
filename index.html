@@ -3010,6 +3010,13 @@
         fetch(`${SERVER}/api/track/${orderId}`)
           .then(r => r.json())
           .then(data => {
+            if (data && data.error && (data.error === 'Order not found' || data.error.includes('not found'))) {
+              if (window.trackPollInterval) clearInterval(window.trackPollInterval);
+              if (trackSSE) { try { trackSSE.close(); } catch(e){} }
+              showToast('ℹ️ बुकिंग समाप्त या हटा दी गई है।', 'info');
+              navigateTo('screen-home');
+              return;
+            }
             if (!data || !data.order) return;
             const o = data.order;
             if (o.status === 'accepted' && !window.orderAcceptedNotified) {

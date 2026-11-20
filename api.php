@@ -354,5 +354,24 @@ if ($route === 'clear-orders' && ($method === 'POST' || $method === 'GET')) {
     jsonResponse(['success' => true, 'message' => 'All orders cleared successfully', 'orders' => []]);
 }
 
+// ── POST/GET /api/delete-order (Admin deletes single order permanently) ──
+if ($route === 'delete-order' && ($method === 'POST' || $method === 'GET')) {
+    $body = getRequestBody();
+    $orderId = $body['orderId'] ?? ($body['id'] ?? ($_GET['orderId'] ?? ''));
+    if ($orderId) {
+        $orders = getOrders();
+        $orders = array_values(array_filter($orders, function($o) use ($orderId) {
+            return $o['id'] !== $orderId;
+        }));
+        saveOrders($orders);
+        $state = getState();
+        if (isset($state['mechanicLocs'][$orderId])) {
+            unset($state['mechanicLocs'][$orderId]);
+            saveState($state);
+        }
+    }
+    jsonResponse(['success' => true, 'orderId' => $orderId, 'orders' => getOrders()]);
+}
+
 // Default 404
 jsonResponse(['error' => 'Endpoint not found', 'route' => $route], 404);

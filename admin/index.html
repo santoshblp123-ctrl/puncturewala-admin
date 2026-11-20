@@ -986,9 +986,24 @@
         renderRecentOrders();
         updateKPIs();
         const badge = document.getElementById('order-badge');
-        badge.innerText = 0;
-        badge.style.display = 'none';
+        if (badge) {
+          badge.innerText = 0;
+          badge.style.display = 'none';
+        }
         showToast('🗑️ सभी बुकिंग क्लियर कर दी गईं।');
+      });
+
+      // 🗑️ Single Order Deleted by admin
+      sse.addEventListener('order-deleted', e => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data && data.orderId) {
+            orders = orders.filter(o => o.id !== data.orderId);
+            renderRecentOrders();
+            renderOrdersList();
+            updateKPIs();
+          }
+        } catch(err) {}
       });
 
       // 🔄 Real-time Order Updated (Status / Cancellation sync)
@@ -1080,23 +1095,35 @@
           return r.json();
         })
         .then(serverOrders => {
-          if (!Array.isArray(serverOrders) || serverOrders.length === 0) return;
-          let hasNew = false;
-          serverOrders.forEach(o => {
-            const idx = orders.findIndex(x => x.id === o.id);
-            if (idx === -1) {
-              orders.unshift(o);
-              hasNew = true;
-              if (o.lat && o.lng) dropCustomerPin(o);
-            } else {
-              orders[idx] = { ...orders[idx], ...o };
+          if (!Array.isArray(serverOrders)) return;
+
+          // If server is empty, keep local list empty as well
+          if (serverOrders.length === 0) {
+            if (orders.length > 0) {
+              orders = [];
+              renderRecentOrders();
+              renderOrdersList();
+              updateKPIs();
             }
-          });
+            return;
+          }
+
+          // Check if truly new orders arrived to sound notification
+          const existingIds = new Set(orders.map(o => o.id));
+          const hasNew = serverOrders.some(o => !existingIds.has(o.id));
+
+          // Sync local array with server truth so deleted orders don't reappear!
+          orders = serverOrders;
           orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+          // Drop pins for orders with lat/lng
+          orders.filter(o => o.lat && o.lng).forEach(dropCustomerPin);
+
           renderRecentOrders();
           renderOrdersList();
           updateKPIs();
           syncVanPosition();
+
           if (hasNew) {
             playAudio('newOrder');
             showToast('🔔 नई ग्राहक बुकिंग प्राप्त हुई!');
@@ -1487,9 +1514,14 @@
           ${isCancelled ? `
             <div class="bg-red-50 border border-red-200 rounded-xl p-2.5 text-xs text-red-800 flex items-center justify-between">
               <span class="font-bold flex items-center gap-1"><i class="fa-solid fa-ban text-red-600"></i> ऑर्डर रद्द: ${order.cancelReason || 'एडमिन द्वारा'}</span>
-              <button onclick="updateOrderStatus('${order.id}', 'pending')" class="text-xs bg-white border border-amber-300 text-amber-800 px-2.5 py-1 rounded-lg font-bold hover:bg-amber-50 transition shadow-sm">
-                🔄 Re-open
-              </button>
+              <div class="flex items-center gap-1.5">
+                <button onclick="updateOrderStatus('${order.id}', 'pending')" class="text-xs bg-white border border-amber-300 text-amber-800 px-2.5 py-1 rounded-lg font-bold hover:bg-amber-50 transition shadow-sm">
+                  🔄 Re-open
+                </button>
+                <button onclick="deleteOrder('${order.id}')" class="text-xs bg-red-600 text-white px-2.5 py-1 rounded-lg font-bold hover:bg-red-700 transition shadow-sm">
+                  🗑️ हटाएं
+                </button>
+              </div>
             </div>
           ` : ''}
         </div>
@@ -1657,7 +1689,12 @@
                 <p class="text-[11px] text-slate-500">${o.phone} • ${o.time}</p>
               </div>
             </div>
-            ${statusBadge(o.status)}
+            <div class="flex items-center gap-2">
+              ${statusBadge(o.status)}
+              <button onclick="deleteOrder('${o.id}')" title="इस बुकिंग को हमेशा के लिए हटाएं" class="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 flex items-center justify-center text-xs transition active:scale-95 shadow-sm">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
           </div>
           <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100">
             <div class="flex justify-between items-center text-slate-600">
@@ -1794,7 +1831,10 @@
             <button onclick="updateOrderStatus('${o.id}', 'pending')" class="flex-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-arrow-rotate-left"></i> वापस लाइव करें (Re-open)
             </button>
-            <a href="tel:${o.phone}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+            <button onclick="deleteOrder('${o.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-trash-can"></i> हटाएं
+            </button>
+            <a href="tel:${o.phone}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-phone"></i> कॉल
             </a>
           </div>` : ''}
@@ -1936,29 +1976,50 @@
       }
     }
 
-    function clearAllOrders() {      if (!confirm('⚠️ क्या आप सभी पुरानी बुकिंग हटाना चाहते हैं?\n\nयह कार्रवाई वापस नहीं होगी।')) return;
+    function clearAllOrders() {
+      if (!confirm('⚠️ क्या आप सभी पुरानी बुकिंग हटाना चाहते हैं?\n\nयह कार्रवाई वापस नहीं होगी।')) return;
+      orders = [];
+      renderOrdersList();
+      renderRecentOrders();
+      updateKPIs();
+      const badge = document.getElementById('order-badge');
+      if (badge) {
+        badge.innerText = 0;
+        badge.style.display = 'none';
+      }
+
       fetch(`${SERVER}/api/clear-orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
       .then(r => r.json())
       .then(() => {
-        orders = [];
-        renderOrdersList();
-        renderRecentOrders();
-        updateKPIs();
-        const badge = document.getElementById('order-badge');
-        badge.innerText = 0;
-        badge.style.display = 'none';
-        showToast('🗑️ सभी पुरानी बुकिंग क्लियर हो गईं!');
+        showToast('🗑️ सभी पुरानी बुकिंग हमेशा के लिए हटा दी गईं!');
       })
       .catch(() => {
-        // Offline fallback — clear locally
-        orders = [];
-        renderOrdersList();
-        renderRecentOrders();
-        updateKPIs();
-        showToast('🗑️ बुकिंग क्लियर हो गईं (ऑफलाइन मोड)');
+        showToast('🗑️ बुकिंग क्लियर हो गईं (लोकल मोड)');
+      });
+    }
+
+    function deleteOrder(orderId) {
+      if (!confirm(`⚠️ क्या आप बुकिंग (${orderId}) को हमेशा के लिए हटाना (Delete) चाहते हैं?`)) return;
+
+      // 1. Immediately remove from local array
+      orders = orders.filter(o => o.id !== orderId);
+      renderOrdersList();
+      renderRecentOrders();
+      updateKPIs();
+      showToast(`🗑️ ऑर्डर ${orderId} हमेशा के लिए हटा दिया गया!`);
+
+      // 2. Remove on server/disk permanently
+      fetch(`${SERVER}/api/delete-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: orderId })
+      })
+      .then(r => r.json())
+      .catch(err => {
+        console.warn('Delete server error:', err);
       });
     }
 

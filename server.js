@@ -269,6 +269,19 @@ const server = http.createServer(async (req, res) => {
     return json(res, { success: true, orders: [] });
   }
 
+  // ── POST /api/delete-order  (Admin deletes single order permanently) ───
+  if (path === '/api/delete-order' && method === 'POST') {
+    const body = await readBody(req);
+    const orderId = body.orderId || body.id;
+    orders = orders.filter(o => o.id !== orderId);
+    delete mechanicLocs[orderId];
+    delete otpStore[orderId];
+    saveOrdersToDisk();
+    pushToAdmin('order-deleted', { orderId });
+    console.log(`[DELETE] Order ${orderId} deleted permanently`);
+    return json(res, { success: true, orderId });
+  }
+
   // ── POST /api/feedback  (Customer submits star rating & feedback) ───────
   if (path === '/api/feedback' && method === 'POST') {
     const body = await readBody(req);
