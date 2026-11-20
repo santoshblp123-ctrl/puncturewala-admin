@@ -890,7 +890,7 @@ function handleStaticRequest(req, res, pathname) {
 }
 
 // Start Main Unified Server (process.env.PORT on Hostinger or 3000 locally)
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('  ╔════════════════════════════════════════════════════════════╗');
   console.log('  ║              PunctureWala 24x7 — Unified Server            ║');
