@@ -16,7 +16,6 @@ const url  = require('url');
 const fs   = require('fs');
 const nodePath = require('path');
 
-const PORT = process.env.PORT || 3000;
 const CUSTOMER_PORT = 3000;
 const ADMIN_PORT = 3001;
 const RELAY_PORT = 3002;
@@ -890,7 +889,10 @@ function handleStaticRequest(req, res, pathname) {
 }
 
 // Start Main Unified Server (process.env.PORT on Hostinger or 3000 locally)
-server.listen(PORT, '0.0.0.0', () => {
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0');
+
+server.on('listening', () => {
   console.log('');
   console.log('  ╔════════════════════════════════════════════════════════════╗');
   console.log('  ║              PunctureWala 24x7 — Unified Server            ║');
