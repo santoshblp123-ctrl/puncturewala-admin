@@ -746,13 +746,13 @@
               </div>
               <div class="sm:col-span-2">
                 <label class="text-xs font-bold text-slate-300 block mb-1.5">📍 पूरा पता (Full Shop Address)</label>
-                <input id="admin-shop-address" type="text" value="शॉप नंबर 4, नियर HP पेट्रोल पंप, NH-48 हाईवे, बिलासपुर (HP)"
+                <input id="admin-shop-address" type="text" value="NH-205 हाईवे, बिलासपुर (HP)"
                   oninput="updateAdminShopPreview()"
                   class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-200 text-xs sm:text-sm focus:outline-none focus:border-blue-400">
               </div>
               <div>
                 <label class="text-xs font-bold text-slate-300 block mb-1.5">🚩 मुख्य लैंडमार्क (Landmark)</label>
-                <input id="admin-shop-landmark" type="text" value="HP पेट्रोल पंप के सामने, NH-48"
+                <input id="admin-shop-landmark" type="text" value="31°19'48.8&quot;N 76°52'23.9&quot;E (नियर मुख्य हाईवे)"
                   oninput="updateAdminShopPreview()"
                   class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-300 text-xs sm:text-sm focus:outline-none focus:border-blue-400">
               </div>
@@ -776,10 +776,10 @@
                   </button>
                 </label>
                 <div class="grid grid-cols-2 gap-3">
-                  <input id="admin-shop-lat" type="number" step="0.0001" value="31.3985" placeholder="Latitude"
+                  <input id="admin-shop-lat" type="number" step="0.0001" value="31.3302" placeholder="Latitude"
                     oninput="updateAdminShopPreview()"
                     class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-300 text-xs font-mono focus:outline-none focus:border-blue-400">
-                  <input id="admin-shop-lng" type="number" step="0.0001" value="76.8240" placeholder="Longitude"
+                  <input id="admin-shop-lng" type="number" step="0.0001" value="76.8733" placeholder="Longitude"
                     oninput="updateAdminShopPreview()"
                     class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-300 text-xs font-mono focus:outline-none focus:border-blue-400">
                 </div>
@@ -3172,8 +3172,8 @@
       const landmark = document.getElementById('admin-shop-landmark')?.value.trim() || '';
       const timings = document.getElementById('admin-shop-timings')?.value.trim() || '24×7 खुला है';
       const distanceKm = parseFloat(document.getElementById('admin-shop-distance')?.value) || 2.1;
-      const lat = parseFloat(document.getElementById('admin-shop-lat')?.value) || 31.3985;
-      const lng = parseFloat(document.getElementById('admin-shop-lng')?.value) || 76.8240;
+      const lat = parseFloat(document.getElementById('admin-shop-lat')?.value) || 31.3302174;
+      const lng = parseFloat(document.getElementById('admin-shop-lng')?.value) || 76.8732986;
 
       fetch(`${SERVER}/api/shop-location`, {
         method: 'POST',

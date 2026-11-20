@@ -82,12 +82,12 @@ let mechanicContact = {
 };
 let shopLocation = {
   name: 'रमेश टायर & पंचर वर्क्स (मेन वर्कशॉप)',
-  address: 'शॉप नंबर 4, नियर HP पेट्रोल पंप, NH-48 हाईवे, बिलासपुर (HP)',
-  landmark: 'HP पेट्रोल पंप के सामने, NH-48',
+  address: 'NH-205 हाईवे, बिलासपुर (HP)',
+  landmark: '31°19\'48.8"N 76°52\'23.9"E',
   phone: '9876543210',
   timings: '24×7 खुला है (Always Open)',
-  lat: 31.3985,
-  lng: 76.8240,
+  lat: 31.3302174,
+  lng: 76.8732986,
   distanceKm: 2.1
 };
 let savedVehicleModels = [
@@ -271,8 +271,8 @@ const server = http.createServer(async (req, res) => {
         order.otpVerified = true;
         // 🛻 Place mechanic vehicle directly at customer location (On-Site)
         const onSiteLoc = {
-          lat: (order.lat || 31.3985) + 0.00012,
-          lng: (order.lng || 76.8240) + 0.00015,
+          lat: (order.lat || 31.3302174) + 0.00012,
+          lng: (order.lng || 76.8732986) + 0.00015,
           orderId: order.id,
           onSite: true,
           status: 'active',
@@ -513,8 +513,8 @@ const server = http.createServer(async (req, res) => {
     // If order is active (काम चालू है) -> send mechanic location right at customer location
     if (existingOrder && existingOrder.status === 'active') {
       const onSiteLoc = {
-        lat: (existingOrder.lat || 31.3985) + 0.00012,
-        lng: (existingOrder.lng || 76.8240) + 0.00015,
+        lat: (existingOrder.lat || 31.3302174) + 0.00012,
+        lng: (existingOrder.lng || 76.8732986) + 0.00015,
         orderId: existingOrder.id,
         onSite: true,
         status: 'active',
@@ -702,8 +702,8 @@ const server = http.createServer(async (req, res) => {
       // If active (काम चालू है) -> Place mechanic van at customer's location
       if (order.status === 'active') {
         const onSiteLoc = {
-          lat: (order.lat || 31.3985) + 0.00012,
-          lng: (order.lng || 76.8240) + 0.00015,
+          lat: (order.lat || 31.3302174) + 0.00012,
+          lng: (order.lng || 76.8732986) + 0.00015,
           orderId: order.id,
           onSite: true,
           status: 'active',
