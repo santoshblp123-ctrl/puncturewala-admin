@@ -129,7 +129,7 @@ if ($route === 'orders' && $method === 'GET') {
 if ($route === 'book' && $method === 'POST') {
     $body = getRequestBody();
     $state = getState();
-    $counter = ($state['orderCounter'] ?? 1041) + 1;
+    $counter = ($state['orderCounter'] ?? 1000) + 1;
     $state['orderCounter'] = $counter;
     saveState($state);
 

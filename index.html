@@ -881,7 +881,7 @@
           <!-- Order ID pill -->
           <div class="inline-flex items-center gap-2 bg-emerald-700/60 border border-emerald-400/40 text-white text-xs font-bold px-4 py-1.5 rounded-full mt-3">
             <i class="fa-solid fa-hashtag text-[10px]"></i>
-            <span id="confirm-order-id">PW-1041</span>
+            <span id="confirm-order-id">PW-…</span>
           </div>
         </div>
 
@@ -3160,10 +3160,10 @@
 
     function handleOrderCompletedByAdmin(data) {
       data = data || {};
-      const orderId = data.orderId || currentOrderId || generatedOrderId || 'PW-1041';
-      const customer = data.customer || (currentUser && currentUser.name) || 'अमित शर्मा';
-      const service = data.service || 'पंचर रिपेयर (कार)';
-      const amount = data.amount || (pendingBookingPayload && pendingBookingPayload.fareInfo ? pendingBookingPayload.fareInfo.total : 317);
+      const orderId = data.orderId || currentOrderId || generatedOrderId || ('PW-' + Date.now().toString().slice(-4));
+      const customer = data.customer || (currentUser && currentUser.name) || 'ग्राहक';
+      const service = data.service || 'पंचर सर्विस';
+      const amount = data.amount || (pendingBookingPayload && pendingBookingPayload.fareInfo ? pendingBookingPayload.fareInfo.total : 0);
 
       // 1. Close active tracking SSE
       if (trackSSE) {
@@ -3454,8 +3454,8 @@
       const tags = Array.from(selectedFeedbackTags);
 
       const payload = {
-        orderId: orderId || currentOrderId || generatedOrderId || 'PW-1041',
-        customer: customer || (currentUser && currentUser.name) || 'अमित शर्मा',
+        orderId: orderId || currentOrderId || generatedOrderId || ('PW-' + Date.now().toString().slice(-4)),
+        customer: customer || (currentUser && currentUser.name) || 'ग्राहक',
         rating: currentFeedbackRating,
         tags: tags,
         comment: comment

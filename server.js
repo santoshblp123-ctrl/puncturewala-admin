@@ -76,7 +76,7 @@ let savedVehicleModels = [
   'Toyota Innova', 'Tata Nexon', 'Hyundai i20', 'Royal Enfield Classic 350'
 ];
 let feedbackList    = [];
-let orderCounter    = 1040;
+let orderCounter    = 1000;
 
 // ── Utility ────────────────────────────────────────────────────────────────
 function genOrderId() { return 'PW-' + (++orderCounter); }
