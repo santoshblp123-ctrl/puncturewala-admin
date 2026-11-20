@@ -905,6 +905,31 @@
       return 'https://puncherwala.in';
     })();
 
+    // ── Notification Sound / Chime Synthesizer (Web Audio API) ──
+    function playAudio(type = 'newOrder') {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'newOrder') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+          gain.gain.setValueAtTime(0.35, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.45);
+        }
+      } catch (e) {}
+      try {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      } catch(e) {}
+    }
+
     // ── SSE: Connect to Live Server ────────────────────────────────────────
     function connectSSE() {
       const sse = new EventSource(`${SERVER}/api/events`);
@@ -916,46 +941,54 @@
 
       // 🔔 New order received from Customer App
       sse.addEventListener('new-order', e => {
-        const order = JSON.parse(e.data);
+        try {
+          const order = JSON.parse(e.data);
 
-        // Add to orders array if not duplicate
-        if (!orders.find(o => o.id === order.id)) {
-          orders.unshift(order);
-        }
+          // Add to orders array if not duplicate
+          const existingIdx = orders.findIndex(o => o.id === order.id);
+          if (existingIdx === -1) {
+            orders.unshift(order);
+            playAudio('newOrder');
+          } else {
+            orders[existingIdx] = order;
+          }
 
-        renderRecentOrders();
-        renderOrdersList();
-        updateKPIs();
+          renderRecentOrders();
+          renderOrdersList();
+          updateKPIs();
 
-        // Update badge
-        const badge = document.getElementById('order-badge');
-        const pending = orders.filter(o => o.status === 'pending').length;
-        badge.innerText = pending;
+          // Update badge
+          const badge = document.getElementById('order-badge');
+          const pending = orders.filter(o => o.status === 'pending').length;
+          if (badge) {
+            badge.innerText = pending;
+            badge.style.display = pending > 0 ? 'inline-flex' : 'none';
+          }
 
-        // 🔴 Big toast notification
-        const modelStr = order.vehicleModel ? ` ${order.vehicleModel}` : '';
-        const vehTxt = order.vehicleNumber ? ` [${(order.vehicle||'').toUpperCase()}${modelStr}: ${order.vehicleNumber}]` : '';
-        showToast(`🔔 नई बुकिंग! ${order.customer}${vehTxt} — ${order.service} — ₹${order.amount}`);
+          // 🔴 Big toast notification
+          const modelStr = order.vehicleModel ? ` ${order.vehicleModel}` : '';
+          const vehTxt = order.vehicleNumber ? ` [${(order.vehicle||'').toUpperCase()}${modelStr}: ${order.vehicleNumber}]` : '';
+          showToast(`🔔 नई बुकिंग! ${order.customer}${vehTxt} — ${order.service} — ₹${order.amount}`);
 
-        // ── Show live alert bar in map panel ──
-        const alertBar  = document.getElementById('live-alert-bar');
-        const alertText = document.getElementById('live-alert-text');
-        if (alertBar && alertText) {
-          const vTag = order.vehicleModel ? `${(order.vehicle||'').toUpperCase()} ${order.vehicleModel} (${order.vehicleNumber||'N/A'})` : (order.vehicleNumber || 'नंबर N/A');
-          alertText.innerText = `🔔 ${order.id} | ${order.customer} | ${order.service} | 🚗 ${vTag} | ₹${order.amount} | ${order.address}`;
-          alertBar.classList.remove('hidden');
-          alertBar.classList.add('flex');
-        }
+          // ── Show live alert bar in map panel ──
+          const alertBar  = document.getElementById('live-alert-bar');
+          const alertText = document.getElementById('live-alert-text');
+          if (alertBar && alertText) {
+            const vTag = order.vehicleModel ? `${(order.vehicle||'').toUpperCase()} ${order.vehicleModel} (${order.vehicleNumber||'N/A'})` : (order.vehicleNumber || 'नंबर N/A');
+            alertText.innerText = `🔔 ${order.id} | ${order.customer} | ${order.service} | 🚗 ${vTag} | ₹${order.amount} | ${order.address}`;
+            alertBar.classList.remove('hidden');
+            alertBar.classList.add('flex');
+          }
 
-        // ── Auto switch to Map panel ──
-        showPanel('panel-map');
+          // ── Drop pin on map ──
+          dropCustomerPin(order);
 
-        // ── Drop pin on map ──
-        dropCustomerPin(order);
-
-        // ── Show GPS bar if location available ──
-        if (order.lat && order.lng) {
-          showGpsBar(order);
+          // ── Show GPS bar if location available ──
+          if (order.lat && order.lng) {
+            showGpsBar(order);
+          }
+        } catch(err) {
+          console.error('[SSE new-order error]:', err);
         }
       });
 
@@ -1083,7 +1116,9 @@
       });
 
       sse.onerror = () => {
-        console.warn('[SSE] Server offline — will retry');
+        console.warn('[SSE] Stream closed or offline — auto reconnecting...');
+        try { sse.close(); } catch(e){}
+        setTimeout(connectSSE, 1500);
       };
     }
 
@@ -1567,7 +1602,7 @@
 
       connectSSE(); // 🔌 Connect to live relay server
       fetchOrders(); // 🔄 Initial fetch
-      setInterval(fetchOrders, 3000); // 🔄 Smart fallback poll every 3s (Hostinger / CDN support)
+      setInterval(fetchOrders, 1000); // 🔄 Ultra-fast 1s sync (guarantees real-time on all proxies & mobile)
 
       // Fetch live van status on load
       fetch(`${SERVER}/api/van-status`)

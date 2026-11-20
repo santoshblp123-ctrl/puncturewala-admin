@@ -148,7 +148,7 @@ if ($route === 'book' && $method === 'POST') {
         'orderId' => $orderId,
         'otp'     => $otp,
         'order'   => $order
-    ], 201);
+    ], 200);
 }
 
 // ── POST /api/order-status ──────────────────────────────
@@ -327,10 +327,21 @@ if (strpos($route, 'track') === 0 && $method === 'GET') {
     jsonResponse(['error' => 'Order not found'], 404);
 }
 
-// ── GET /api/events (SSE) ──────────────────────────────
+// ── GET /api/events (Real-Time SSE Stream) ──────────────────────────────
 if ($route === 'events' && $method === 'GET') {
+    // Disable any output buffering or compression so events stream instantly
+    if (function_exists('apache_setenv')) {
+        @apache_setenv('no-gzip', 1);
+    }
+    @ini_set('zlib.output_compression', 0);
+    @ini_set('implicit_flush', 1);
+    while (ob_get_level() > 0) {
+        @ob_end_clean();
+    }
+
     header("Content-Type: text/event-stream; charset=utf-8");
-    header("Cache-Control: no-cache, no-transform");
+    header("Cache-Control: no-cache, no-store, must-revalidate");
+    header("Pragma: no-cache");
     header("Connection: keep-alive");
     header("X-Accel-Buffering: no");
 
@@ -348,8 +359,62 @@ if ($route === 'events' && $method === 'GET') {
     if (!empty($state['shopLocation'])) {
         echo "event: shop-location-updated\ndata: " . json_encode($state['shopLocation']) . "\n\n";
     }
-    if (ob_get_level() > 0) ob_flush();
-    flush();
+    @flush();
+
+    // Stream live events in real-time for up to 25s per connection
+    $startTime = time();
+    $lastKnownOrdersCount = count($orders);
+    $lastKnownFirstOrderId = !empty($orders) ? $orders[0]['id'] : '';
+    $lastOrdersMtime = file_exists($ordersFile) ? filemtime($ordersFile) : 0;
+    $lastStateMtime  = file_exists($stateFile)  ? filemtime($stateFile)  : 0;
+
+    while (time() - $startTime < 25) {
+        if (connection_aborted()) break;
+
+        // Check if orders.json changed
+        clearstatcache(true, $ordersFile);
+        $currOrdersMtime = file_exists($ordersFile) ? filemtime($ordersFile) : 0;
+        if ($currOrdersMtime > $lastOrdersMtime) {
+            $lastOrdersMtime = $currOrdersMtime;
+            $currentOrders = getOrders();
+            $currCount = count($currentOrders);
+            $currFirstId = !empty($currentOrders) ? $currentOrders[0]['id'] : '';
+
+            if ($currCount > 0 && $currFirstId !== $lastKnownFirstOrderId) {
+                // A new order was placed!
+                $newOrder = $currentOrders[0];
+                echo "event: new-order\ndata: " . json_encode($newOrder, JSON_UNESCAPED_UNICODE) . "\n\n";
+            }
+            echo "event: all-orders\ndata: " . json_encode($currentOrders, JSON_UNESCAPED_UNICODE) . "\n\n";
+            $lastKnownOrdersCount = $currCount;
+            $lastKnownFirstOrderId = $currFirstId;
+            @flush();
+        }
+
+        // Check if state.json changed
+        clearstatcache(true, $stateFile);
+        $currStateMtime = file_exists($stateFile) ? filemtime($stateFile) : 0;
+        if ($currStateMtime > $lastStateMtime) {
+            $lastStateMtime = $currStateMtime;
+            $currentState = getState();
+            if (!empty($currentState['vanStatus'])) {
+                echo "event: van-status\ndata: " . json_encode($currentState['vanStatus']) . "\n\n";
+            }
+            if (!empty($currentState['mechanicContact'])) {
+                echo "event: mechanic-contact-updated\ndata: " . json_encode($currentState['mechanicContact']) . "\n\n";
+            }
+            if (!empty($currentState['shopLocation'])) {
+                echo "event: shop-location-updated\ndata: " . json_encode($currentState['shopLocation']) . "\n\n";
+            }
+            @flush();
+        }
+
+        // SSE comment heartbeat every 3 seconds to keep connection open
+        echo ": heartbeat\n\n";
+        @flush();
+
+        usleep(300000); // 300ms ultra-responsive check
+    }
     exit;
 }
 

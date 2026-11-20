@@ -173,6 +173,7 @@ const server = http.createServer(async (req, res) => {
 
     // 🔔 Push real-time alert to Admin
     pushToAdmin('new-order', order);
+    pushToAdmin('all-orders', orders);
 
     console.log(`[NEW ORDER] ${order.id} | ${order.customer} | ${order.service} | ₹${order.amount} | OTP:${order.otp} | Lat:${order.lat} Lng:${order.lng}`);
     return json(res, { success: true, orderId: order.id, order, otp });
