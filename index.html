@@ -161,6 +161,27 @@
     <!-- =========== PANELS =========== -->
     <main class="flex-1 p-4 lg:p-6 space-y-4 lg:space-y-6">
 
+      <!-- 🔔 Notification Enable Banner (Admin) -->
+      <div id="notif-permission-bar" class="hidden bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/40 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs shadow-xs animate-fade-in">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-base font-black shrink-0 shadow-xs">
+            <i class="fa-solid fa-bell"></i>
+          </div>
+          <div class="truncate">
+            <p class="font-extrabold text-slate-900 text-xs sm:text-sm">🔔 नए बुकिंग ऑर्डर्स का तुरंत सायरन/अलर्ट चालू करें</p>
+            <p class="text-[11px] text-slate-600 truncate mt-0.5">नया पंचर ऑर्डर आते ही मोबाइल पर तेज़ आवाज़ और नोटिफिकेशन मिलेगा</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" onclick="requestNotificationPermission()" class="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-xs transition shadow-xs">
+            अलर्ट चालू करें
+          </button>
+          <button type="button" onclick="dismissNotificationPrompt()" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- ===== 1. DASHBOARD PANEL ===== -->
       <div id="panel-dashboard" class="space-y-5">
 
@@ -970,6 +991,121 @@
       } catch(e) {}
     }
 
+    function triggerPushNotification(title, body, url = './admin', type = 'newOrder') {
+      // 1. Android Native Notification (via AndroidBridge JavascriptInterface)
+      if (window.AndroidBridge && typeof window.AndroidBridge.showNotification === 'function') {
+        try {
+          window.AndroidBridge.showNotification(title, body, url);
+        } catch(e) {}
+      }
+      // 2. Web Browser Notification API
+      else if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification(title, {
+                body: body,
+                icon: '../icon-192.png',
+                badge: '../icon-192.png',
+                vibrate: [300, 100, 300, 100, 400],
+                tag: 'pw-admin-' + Date.now(),
+                data: { url: url }
+              });
+            }).catch(() => {});
+          } else {
+            new Notification(title, {
+              body: body,
+              icon: '../icon-192.png'
+            });
+          }
+        } catch(e) {}
+      }
+
+      // 3. Audio Chime
+      playAudio(type);
+
+      // 4. In-App Floating Visual Banner
+      showInAppFloatingBanner(title, body, url);
+    }
+
+    function showInAppFloatingBanner(title, body, url) {
+      let banner = document.getElementById('pw-inapp-notification-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'pw-inapp-notification-banner';
+        banner.className = 'fixed top-4 right-4 max-w-sm bg-slate-900/95 text-white border-2 border-amber-400 rounded-2xl shadow-2xl p-4 z-[9999] backdrop-blur-md transition-all duration-300 flex items-start gap-3 cursor-pointer animate-bounce';
+        document.body.appendChild(banner);
+      }
+
+      banner.innerHTML = `
+        <div class="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-lg font-black shrink-0 shadow-md">
+          <i class="fa-solid fa-bell"></i>
+        </div>
+        <div class="flex-1 min-w-0 pr-1">
+          <div class="flex items-center justify-between gap-1">
+            <h4 class="font-extrabold text-xs text-amber-300 truncate">${title}</h4>
+            <span class="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.2 rounded font-mono">अभी</span>
+          </div>
+          <p class="text-[11px] text-slate-200 mt-0.5 leading-snug line-clamp-2">${body}</p>
+        </div>
+        <button onclick="event.stopPropagation(); this.parentElement.style.display='none';" class="text-slate-400 hover:text-white p-1 rounded-lg text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+
+      banner.style.display = 'flex';
+      banner.onclick = () => {
+        banner.style.display = 'none';
+        if (typeof showPanel === 'function') showPanel('panel-orders');
+      };
+
+      if (window.inAppNotifTimeout) clearTimeout(window.inAppNotifTimeout);
+      window.inAppNotifTimeout = setTimeout(() => {
+        if (banner) banner.style.display = 'none';
+      }, 8000);
+    }
+
+    function initNotificationPermissionPrompt() {
+      if (window.AndroidBridge) return;
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'default') {
+        const dismissed = localStorage.getItem('pw_admin_notif_dismissed');
+        if (!dismissed) {
+          const bar = document.getElementById('notif-permission-bar');
+          if (bar) bar.classList.remove('hidden');
+        }
+      }
+    }
+
+    function requestNotificationPermission() {
+      if (window.AndroidBridge) {
+        showToast('🔔 Android ऐप नोटिफिकेशन पहले से सक्रिय हैं!');
+        const bar = document.getElementById('notif-permission-bar');
+        if (bar) bar.classList.add('hidden');
+        return;
+      }
+      if (!('Notification' in window)) {
+        showToast('⚠️ इस ब्राउज़र में नोटिफिकेशन सपोर्ट नहीं है');
+        return;
+      }
+      Notification.requestPermission().then(permission => {
+        const bar = document.getElementById('notif-permission-bar');
+        if (bar) bar.classList.add('hidden');
+        if (permission === 'granted') {
+          showToast('🔔 नोटिफिकेशन सक्रिय हो गए! नया ऑर्डर आने पर तुरंत सायरन बजेगा।');
+          triggerPushNotification('🔔 PunctureWala Admin', 'नोटिफिकेशन अलर्ट सक्रिय हो गए हैं!', './admin', 'newOrder');
+        } else {
+          localStorage.setItem('pw_admin_notif_dismissed', '1');
+        }
+      });
+    }
+
+    function dismissNotificationPrompt() {
+      localStorage.setItem('pw_admin_notif_dismissed', '1');
+      const bar = document.getElementById('notif-permission-bar');
+      if (bar) bar.classList.add('hidden');
+    }
+
     // ── SSE: Connect to Live Server ────────────────────────────────────────
     function connectSSE() {
       const sse = new EventSource(`${SERVER}/api/events`);
@@ -988,7 +1124,12 @@
           const existingIdx = orders.findIndex(o => o.id === order.id);
           if (existingIdx === -1) {
             orders.unshift(order);
-            playAudio('newOrder');
+            triggerPushNotification(
+              '🚨 नया पंचर ऑर्डर मिला!',
+              `${order.customer || 'ग्राहक'} (${order.service || 'पंचर'}) • ₹${order.amount || 150} • तुरंत चेक करें`,
+              './admin',
+              'newOrder'
+            );
           } else {
             orders[existingIdx] = order;
           }
@@ -1240,7 +1381,7 @@
           syncVanPosition();
 
           if (hasNew) {
-            playAudio('newOrder');
+            triggerPushNotification('🚨 नया पंचर ऑर्डर मिला!', 'नई ग्राहक बुकिंग प्राप्त हुई है • तुरंत चेक करें', './admin', 'newOrder');
             showToast('🔔 नई ग्राहक बुकिंग प्राप्त हुई!');
           }
         })
@@ -1961,6 +2102,11 @@
       // Render initial live customer pins & align van to active customer
       orders.filter(o => o.status === 'pending' || o.status === 'active').forEach(dropCustomerPin);
       syncVanPosition();
+
+      initNotificationPermissionPrompt();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('../sw.js?v=5').catch(() => {});
+      }
 
       connectSSE(); // 🔌 Connect to live relay server
       fetchOrders(); // 🔄 Initial fetch
@@ -2880,6 +3026,7 @@
         vip: Math.random() > 0.8
       };
       orders.unshift(newOrder);
+      triggerPushNotification('🚨 नया पंचर ऑर्डर (डेमो)', `${name} • ${svc} • ₹${amt}`, './admin', 'newOrder');
       renderRecentOrders();
       renderOrdersList();
       const badge = document.getElementById('order-badge');
