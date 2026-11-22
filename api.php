@@ -27,7 +27,7 @@ $mechanicsFile = $dataDir . '/mechanics.json';
 // Initialize default mechanics if not exists
 if (!file_exists($mechanicsFile)) {
     $defaultMechanics = [
-        ['id' => 'M-1', 'name' => 'रमेश मिस्त्री', 'role' => 'वरिष्ठ टेक्नीशियन', 'phone' => '9876543210', 'vehicle' => 'HP64-BT-9821', 'ordersToday' => 12, 'rating' => '4.9', 'status' => 'free'],
+        ['id' => 'M-1', 'name' => 'संतोष मिस्त्री', 'role' => 'वरिष्ठ टेक्नीशियन', 'phone' => '9876543210', 'vehicle' => 'HP64-BT-9821', 'ordersToday' => 12, 'rating' => '4.9', 'status' => 'free'],
         ['id' => 'M-2', 'name' => 'सुरेश कुमार', 'role' => 'टेक्नीशियन', 'phone' => '9876543211', 'vehicle' => 'DL3C-AE-7740', 'ordersToday' => 9, 'rating' => '4.7', 'status' => 'busy']
     ];
     file_put_contents($mechanicsFile, json_encode($defaultMechanics, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -54,7 +54,7 @@ if (!file_exists($stateFile)) {
             'tagline' => 'सीधे कॉल करें • 10-15 मिनट में ऑन-साइट पहुँचेगा'
         ],
         'shopLocation' => [
-            'name' => 'रमेश टायर & पंचर वर्क्स (मेन वर्कशॉप)',
+            'name' => 'संतोष टायर & पंचर वर्क्स (मेन वर्कशॉप)',
             'address' => 'NH-205 हाईवे, बिलासपुर (HP)',
             'landmark' => '31°19\'48.8"N 76°52\'23.9"E',
             'phone' => '9876543210',
@@ -97,7 +97,7 @@ function getMechanics() {
     global $mechanicsFile;
     if (!file_exists($mechanicsFile)) {
         return [
-            ['id' => 'M-1', 'name' => 'रमेश मिस्त्री', 'role' => 'वरिष्ठ टेक्नीशियन', 'phone' => '9876543210', 'vehicle' => 'HP64-BT-9821', 'ordersToday' => 12, 'rating' => '4.9', 'status' => 'free'],
+            ['id' => 'M-1', 'name' => 'संतोष मिस्त्री', 'role' => 'वरिष्ठ टेक्नीशियन', 'phone' => '9876543210', 'vehicle' => 'HP64-BT-9821', 'ordersToday' => 12, 'rating' => '4.9', 'status' => 'free'],
             ['id' => 'M-2', 'name' => 'सुरेश कुमार', 'role' => 'टेक्नीशियन', 'phone' => '9876543211', 'vehicle' => 'DL3C-AE-7740', 'ordersToday' => 9, 'rating' => '4.7', 'status' => 'busy']
         ];
     }

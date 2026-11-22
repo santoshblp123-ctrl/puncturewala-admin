@@ -489,7 +489,7 @@
             <div id="admin-van" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 text-center van-marker z-20 transition-all duration-1000 cursor-pointer" onclick="moveVanOnMap()">
               <div id="admin-van-badge" class="bg-slate-900 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-400 mb-1 flex items-center justify-center gap-1 whitespace-nowrap shadow-md">
                 <span id="admin-van-pulse" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block"></span>
-                <span id="admin-van-label">रमेश • HP64-BT-9821</span>
+                <span id="admin-van-label">संतोष • HP64-BT-9821</span>
               </div>
               <div id="admin-van-icon-box" class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl font-black shadow-xl border-2 border-white mx-auto relative hover:scale-110 transition-transform">
                 <i class="fa-solid fa-truck-pickup"></i>
@@ -536,7 +536,7 @@
             <div class="flex items-center gap-2">
               <div class="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-slate-900 font-black"><i class="fa-solid fa-truck-pickup"></i></div>
               <div>
-                <p class="font-bold text-slate-900">रमेश मिस्त्री</p>
+                <p class="font-bold text-slate-900">संतोष मिस्त्री</p>
                 <p class="text-slate-500">HP64-BT-9821 • <span class="text-emerald-600 font-semibold">ऑन ड्यूटी</span></p>
               </div>
             </div>
@@ -630,7 +630,7 @@
                     <i class="fa-solid fa-phone-volume text-amber-300 text-sm"></i>
                   </div>
                   <div class="min-w-0">
-                    <p id="admin-preview-name" class="font-black text-xs leading-tight truncate">रमेश मिस्त्री (ऑन-ड्यूटी)</p>
+                    <p id="admin-preview-name" class="font-black text-xs leading-tight truncate">संतोष मिस्त्री (ऑन-ड्यूटी)</p>
                     <p id="admin-preview-tagline" class="text-[10px] text-emerald-100 leading-tight truncate mt-0.5">सीधे कॉल करें • 10-15 मिनट में पहुँचेगा</p>
                   </div>
                 </div>
@@ -672,7 +672,7 @@
             <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <label class="text-xs font-bold text-slate-300 block mb-1.5">🏪 दुकान / वर्कशॉप का नाम</label>
-                <input id="admin-shop-name" type="text" value="रमेश टायर & पंचर वर्क्स (मेन वर्कशॉप)"
+                <input id="admin-shop-name" type="text" value="संतोष टायर & पंचर वर्क्स (मेन वर्कशॉप)"
                   oninput="updateAdminShopPreview()"
                   class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-bold focus:outline-none focus:border-blue-400 text-sm">
               </div>
@@ -736,7 +736,7 @@
                       <i class="fa-solid fa-shop"></i>
                     </div>
                     <div>
-                      <p id="admin-shop-preview-name" class="font-extrabold text-sm text-white leading-tight">रमेश टायर & पंचर वर्क्स</p>
+                      <p id="admin-shop-preview-name" class="font-extrabold text-sm text-white leading-tight">संतोष टायर & पंचर वर्क्स</p>
                       <p class="text-[11px] text-blue-300 font-medium flex items-center gap-1 mt-0.5">
                         <i class="fa-solid fa-clock text-[10px]"></i>
                         <span id="admin-shop-preview-timings">24×7 खुला है</span>
@@ -1679,7 +1679,7 @@
         van.style.bottom = pos.bottom;
         van.style.left = pos.left;
         if (vanLabel) {
-          vanLabel.innerHTML = `रमेश • HP64-BT-9821 (उपलब्ध)`;
+          vanLabel.innerHTML = `संतोष • HP64-BT-9821 (उपलब्ध)`;
         }
         if (vanPulse) {
           vanPulse.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block';
@@ -3079,7 +3079,7 @@
     }
 
     function updateAdminShopPreview() {
-      const name = document.getElementById('admin-shop-name')?.value || 'रमेश टायर & पंचर वर्क्स';
+      const name = document.getElementById('admin-shop-name')?.value || 'संतोष टायर & पंचर वर्क्स';
       const phone = document.getElementById('admin-shop-phone')?.value || '9876543210';
       const address = document.getElementById('admin-shop-address')?.value || 'शॉप नंबर 4, NH-48 हाईवे';
       const landmark = document.getElementById('admin-shop-landmark')?.value || 'HP पेट्रोल पंप के सामने';
@@ -3126,7 +3126,7 @@
     }
 
     function saveAdminShopLocation() {
-      const name = document.getElementById('admin-shop-name')?.value.trim() || 'रमेश टायर & पंचर वर्क्स (मेन वर्कशॉप)';
+      const name = document.getElementById('admin-shop-name')?.value.trim() || 'संतोष टायर & पंचर वर्क्स (मेन वर्कशॉप)';
       const phone = document.getElementById('admin-shop-phone')?.value.trim() || '9876543210';
       const address = document.getElementById('admin-shop-address')?.value.trim() || '';
       const landmark = document.getElementById('admin-shop-landmark')?.value.trim() || '';
@@ -3154,7 +3154,7 @@
     //  MECHANIC TEAM MANAGEMENT (CRUD: Add, Edit, Delete, Duty Status)
     // ══════════════════════════════════════════════
     let defaultMechanicsList = [
-      { id: 'M-1', name: 'रमेश मिस्त्री', role: 'वरिष्ठ टेक्नीशियन', phone: '9876543210', vehicle: 'HP64-BT-9821', ordersToday: 12, rating: '4.9', status: 'free' },
+      { id: 'M-1', name: 'संतोष मिस्त्री', role: 'वरिष्ठ टेक्नीशियन', phone: '9876543210', vehicle: 'HP64-BT-9821', ordersToday: 12, rating: '4.9', status: 'free' },
       { id: 'M-2', name: 'सुरेश कुमार', role: 'टेक्नीशियन', phone: '9876543211', vehicle: 'DL3C-AE-7740', ordersToday: 9, rating: '4.7', status: 'busy' }
     ];
 
@@ -3950,7 +3950,7 @@
           <label class="block text-xs font-bold text-slate-700 mb-1">मैकेनिक का नाम <span class="text-rose-500">*</span></label>
           <div class="relative">
             <i class="fa-solid fa-user absolute left-3 top-3 text-slate-400 text-xs"></i>
-            <input type="text" id="mechanic-form-name" required placeholder="जैसे: रमेश मिस्त्री"
+            <input type="text" id="mechanic-form-name" required placeholder="जैसे: संतोष मिस्त्री"
               class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900">
           </div>
         </div>
