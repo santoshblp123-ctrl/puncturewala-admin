@@ -106,3 +106,35 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
+
+// ── Firebase Cloud Messaging (FCM) Background Handler ───────────────
+try {
+  importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
+
+  firebase.initializeApp({
+    apiKey: "AIzaSyDrD2bdMVL_FA-ty7_B6jUVyrarYE6cfQk",
+    authDomain: "punchar-wala.firebaseapp.com",
+    projectId: "punchar-wala",
+    storageBucket: "punchar-wala.firebasestorage.app",
+    messagingSenderId: "508643570090",
+    appId: "1:508643570090:web:5ce6e6fd3076b03ce6bbd3"
+  });
+
+  const messaging = firebase.messaging();
+  messaging.onBackgroundMessage(function(payload) {
+    const title = (payload.notification && payload.notification.title) || (payload.data && payload.data.title) || '🔔 PunctureWala 24x7';
+    const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.body) || 'नया अलर्ट';
+    const options = {
+      body: body,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      vibrate: [300, 100, 300, 100, 400],
+      tag: 'pw-fcm-' + Date.now(),
+      data: payload.data || { url: './' }
+    };
+    self.registration.showNotification(title, options);
+  });
+} catch(err) {
+  // Graceful fallback to standard push handler
+}

@@ -7,6 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Firebase App & Messaging SDK for FCM & Realtime sync -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
   <!-- Leaflet Map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -965,6 +968,26 @@
       }
       return 'https://puncherwala.in';
     })();
+
+    // ── Firebase Configuration for FCM & Cloud Notifications ──
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrD2bdMVL_FA-ty7_B6jUVyrarYE6cfQk",
+      authDomain: "punchar-wala.firebaseapp.com",
+      projectId: "punchar-wala",
+      storageBucket: "punchar-wala.firebasestorage.app",
+      messagingSenderId: "508643570090",
+      appId: "1:508643570090:web:5ce6e6fd3076b03ce6bbd3"
+    };
+
+    try {
+      if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        if (firebase.messaging && firebase.messaging.isSupported()) {
+          window.firebaseMessaging = firebase.messaging();
+          console.log('[FIREBASE] Admin FCM initialized!');
+        }
+      }
+    } catch(e) {}
 
     // ── Notification Sound / Chime Synthesizer (Web Audio API) ──
     function playAudio(type = 'newOrder') {
