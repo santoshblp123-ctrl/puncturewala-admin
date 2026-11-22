@@ -24,6 +24,7 @@ const RELAY_PORT = 3002;
 const DATA_DIR = nodePath.join(__dirname, 'data');
 const ORDERS_FILE = nodePath.join(DATA_DIR, 'orders.json');
 const USERS_FILE = nodePath.join(DATA_DIR, 'users.json');
+const MECHANICS_FILE = nodePath.join(DATA_DIR, 'mechanics.json');
 
 function saveOrdersToDisk() {
   try {
@@ -35,6 +36,32 @@ function saveOrdersToDisk() {
 // In-memory store (starts completely clean, loads from disk if present)
 let orders = [];
 let users = [];
+
+let defaultMechanics = [
+  { id: 'M-1', name: 'रमेश मिस्त्री', role: 'वरिष्ठ टेक्नीशियन', phone: '9876543210', vehicle: 'HP64-BT-9821', ordersToday: 12, rating: '4.9', status: 'free' },
+  { id: 'M-2', name: 'सुरेश कुमार', role: 'टेक्नीशियन', phone: '9876543211', vehicle: 'DL3C-AE-7740', ordersToday: 9, rating: '4.7', status: 'busy' }
+];
+let mechanicsList = [...defaultMechanics];
+
+function saveMechanicsToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(MECHANICS_FILE, JSON.stringify(mechanicsList, null, 2), 'utf8');
+  } catch(e) {}
+}
+
+function loadMechanicsFromDisk() {
+  try {
+    if (fs.existsSync(MECHANICS_FILE)) {
+      const raw = fs.readFileSync(MECHANICS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        mechanicsList = parsed;
+      }
+    }
+  } catch(e) {}
+}
+loadMechanicsFromDisk();
 
 function saveUsersToDisk() {
   try {
@@ -411,6 +438,74 @@ const server = http.createServer(async (req, res) => {
     return json(res, { success: true, users, total: users.length });
   }
 
+  // ── GET/POST /api/mechanics (Manage Mechanic Team) ────────────────────────
+  if (path === '/api/mechanics') {
+    if (method === 'GET') {
+      return json(res, { success: true, mechanics: mechanicsList });
+    }
+    if (method === 'POST') {
+      const body = await readBody(req);
+      if (body.id) {
+        // Update existing mechanic
+        const idx = mechanicsList.findIndex(m => m.id === body.id);
+        if (idx !== -1) {
+          mechanicsList[idx] = {
+            ...mechanicsList[idx],
+            name: body.name !== undefined ? body.name : mechanicsList[idx].name,
+            role: body.role !== undefined ? body.role : mechanicsList[idx].role,
+            phone: body.phone !== undefined ? body.phone : mechanicsList[idx].phone,
+            vehicle: body.vehicle !== undefined ? body.vehicle : mechanicsList[idx].vehicle,
+            rating: body.rating !== undefined ? body.rating : mechanicsList[idx].rating,
+            status: body.status !== undefined ? body.status : mechanicsList[idx].status,
+            ordersToday: body.ordersToday !== undefined ? parseInt(body.ordersToday) || 0 : (mechanicsList[idx].ordersToday || 0)
+          };
+        } else {
+          const newMech = {
+            id: body.id,
+            name: body.name || 'नया मैकेनिक',
+            role: body.role || 'टेक्नीशियन',
+            phone: body.phone || '',
+            vehicle: body.vehicle || '',
+            rating: body.rating || '4.8',
+            status: body.status || 'free',
+            ordersToday: parseInt(body.ordersToday) || 0
+          };
+          mechanicsList.push(newMech);
+        }
+      } else {
+        const newId = 'M-' + Date.now().toString().slice(-4);
+        const newMech = {
+          id: newId,
+          name: body.name || 'नया मैकेनिक',
+          role: body.role || 'टेक्नीशियन',
+          phone: body.phone || '',
+          vehicle: body.vehicle || '',
+          rating: body.rating || '5.0',
+          status: body.status || 'free',
+          ordersToday: parseInt(body.ordersToday) || 0
+        };
+        mechanicsList.push(newMech);
+      }
+      saveMechanicsToDisk();
+      pushToAdmin('mechanics-updated', mechanicsList);
+      console.log(`[MECHANIC SAVED] Total: ${mechanicsList.length}`);
+      return json(res, { success: true, mechanics: mechanicsList });
+    }
+  }
+
+  // ── POST /api/delete-mechanic (Admin removes a mechanic) ──────────────────
+  if (path === '/api/delete-mechanic' && method === 'POST') {
+    const body = await readBody(req);
+    const mechId = body.id || body.mechanicId;
+    if (mechId) {
+      mechanicsList = mechanicsList.filter(m => m.id !== mechId);
+      saveMechanicsToDisk();
+      pushToAdmin('mechanics-updated', mechanicsList);
+      console.log(`[DELETE MECHANIC] Mechanic ${mechId} removed. Remaining: ${mechanicsList.length}`);
+    }
+    return json(res, { success: true, mechanics: mechanicsList });
+  }
+
   // ── POST /api/feedback  (Customer submits star rating & feedback) ───────
   if (path === '/api/feedback' && method === 'POST') {
     const body = await readBody(req);
@@ -737,6 +832,7 @@ const server = http.createServer(async (req, res) => {
     res.write(`event: mechanic-contact-updated\ndata: ${JSON.stringify(mechanicContact)}\n\n`);
     res.write(`event: van-status\ndata: ${JSON.stringify(vanStatus)}\n\n`);
     res.write(`event: shop-location-updated\ndata: ${JSON.stringify(shopLocation)}\n\n`);
+    res.write(`event: mechanics-updated\ndata: ${JSON.stringify(mechanicsList)}\n\n`);
 
     req.on('close', () => {
       adminClients = adminClients.filter(c => c !== res);

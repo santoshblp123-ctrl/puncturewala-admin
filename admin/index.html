@@ -554,85 +554,23 @@
 
       <!-- ===== 4. MECHANICS PANEL ===== -->
       <div id="panel-mechanics" class="hidden space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-          <!-- Mechanic 1 -->
-          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-            <div class="flex items-start justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-slate-800 text-amber-400 flex items-center justify-center text-xl font-black">
-                  <i class="fa-solid fa-user-gear"></i>
-                </div>
-                <div>
-                  <h3 class="font-bold text-sm text-slate-900">रमेश मिस्त्री</h3>
-                  <p class="text-[10px] text-slate-500">वरिष्ठ टेक्नीशियन</p>
-                </div>
-              </div>
-              <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> फ्री
-              </span>
+        <!-- Top Action Bar -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-bold text-slate-900 text-base">मैकेनिक टीम</h2>
+              <span id="mechanic-count-badge" class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-300">2 सदस्य</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div class="bg-slate-50 rounded-lg p-2">
-                <p class="text-slate-400">आज ऑर्डर</p>
-                <p class="font-black text-slate-900">12</p>
-              </div>
-              <div class="bg-slate-50 rounded-lg p-2">
-                <p class="text-slate-400">रेटिंग</p>
-                <p class="font-black text-amber-700">4.9 ★</p>
-              </div>
-            </div>
-            <div class="text-xs text-slate-600"><i class="fa-solid fa-truck-pickup text-amber-500 mr-1"></i> HP64-BT-9821</div>
-            <div class="flex gap-2">
-              <button onclick="toggleMechanicStatus(this, 'free')" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">व्यस्त करें</button>
-              <a href="tel:9876543210" class="flex-1 bg-emerald-600 text-white font-bold py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
-                <i class="fa-solid fa-phone text-[10px]"></i> कॉल
-              </a>
-            </div>
+            <p class="text-xs text-slate-500 mt-0.5">टीम के मैकेनिक जोड़ें, उनकी जानकारी एडिट करें या हटाएं</p>
           </div>
+          <button onclick="openAddMechanicModal()" class="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
+            <i class="fa-solid fa-user-plus"></i> नया मैकेनिक जोड़ें
+          </button>
+        </div>
 
-          <!-- Mechanic 2 -->
-          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-            <div class="flex items-start justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-slate-700 text-amber-300 flex items-center justify-center text-xl font-black">
-                  <i class="fa-solid fa-user-gear"></i>
-                </div>
-                <div>
-                  <h3 class="font-bold text-sm text-slate-900">सुरेश कुमार</h3>
-                  <p class="text-[10px] text-slate-500">टेक्नीशियन</p>
-                </div>
-              </div>
-              <span class="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> व्यस्त
-              </span>
-            </div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div class="bg-slate-50 rounded-lg p-2">
-                <p class="text-slate-400">आज ऑर्डर</p>
-                <p class="font-black text-slate-900">9</p>
-              </div>
-              <div class="bg-slate-50 rounded-lg p-2">
-                <p class="text-slate-400">रेटिंग</p>
-                <p class="font-black text-amber-700">4.7 ★</p>
-              </div>
-            </div>
-            <div class="text-xs text-slate-600"><i class="fa-solid fa-truck-pickup text-amber-500 mr-1"></i> DL3C-AE-7740</div>
-            <div class="flex gap-2">
-              <button onclick="toggleMechanicStatus(this, 'busy')" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-1.5 rounded-lg text-xs transition">फ्री करें</button>
-              <a href="tel:9876543211" class="flex-1 bg-emerald-600 text-white font-bold py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
-                <i class="fa-solid fa-phone text-[10px]"></i> कॉल
-              </a>
-            </div>
-          </div>
-
-          <!-- Add New Mechanic Card -->
-          <div class="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-slate-100 transition" onclick="showToast('नया मैकेनिक जोड़ने की सुविधा जल्द आएगी!')">
-            <div class="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xl">
-              <i class="fa-solid fa-plus"></i>
-            </div>
-            <p class="text-xs text-slate-500 font-semibold text-center">नया मैकेनिक जोड़ें</p>
-          </div>
+        <!-- Mechanics Dynamic Grid -->
+        <div id="mechanics-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Populated by JavaScript renderMechanicsGrid() -->
         </div>
       </div>
 
@@ -1240,6 +1178,18 @@
             }
             updateUsersUI();
             showToast(`👤 नया ग्राहक लॉगिन: ${user.name} (${user.provider === 'google' ? 'Google' : 'फ़ोन'})`);
+          }
+        } catch(err){}
+      });
+
+      // 🛠️ Mechanics Team Live Updates
+      sse.addEventListener('mechanics-updated', e => {
+        try {
+          const list = JSON.parse(e.data);
+          if (Array.isArray(list)) {
+            mechanicsList = list;
+            try { localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList)); } catch(err){}
+            renderMechanicsGrid();
           }
         } catch(err){}
       });
@@ -2033,6 +1983,11 @@
 
       // Fetch live shop location settings
       loadAdminShopLocation();
+
+      // Render mechanics team grid & fetch updates
+      renderMechanicsGrid();
+      fetchMechanics();
+      setInterval(fetchMechanics, 4000);
     });
 
     function updateLiveTime() {
@@ -2073,6 +2028,10 @@
 
       if (panelId === 'panel-users') {
         fetchUsers();
+      }
+      if (panelId === 'panel-mechanics') {
+        renderMechanicsGrid();
+        fetchMechanics();
       }
     }
 
@@ -3190,37 +3149,354 @@
       });
     }
 
-    function toggleMechanicStatus(btn, currentStatus) {
-      const card = btn.closest('.space-y-3');
-      const badge = card.querySelector('span.rounded-full');
-      if (currentStatus === 'free') {
-        badge.className = 'text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1';
-        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> व्यस्त';
-        btn.innerText = 'फ्री करें';
-        btn.onclick = () => toggleMechanicStatus(btn, 'busy');
-        btn.className = btn.className.replace('bg-amber-500 hover:bg-amber-400 text-slate-950', 'bg-emerald-500 hover:bg-emerald-400 text-white');
-        showToast('मैकेनिक व्यस्त मार्क किया गया — ग्राहकों को वेटिंग टाइम दिखेगा');
+    // ══════════════════════════════════════════════
+    //  MECHANIC TEAM MANAGEMENT (CRUD: Add, Edit, Delete, Duty Status)
+    // ══════════════════════════════════════════════
+    let defaultMechanicsList = [
+      { id: 'M-1', name: 'रमेश मिस्त्री', role: 'वरिष्ठ टेक्नीशियन', phone: '9876543210', vehicle: 'HP64-BT-9821', ordersToday: 12, rating: '4.9', status: 'free' },
+      { id: 'M-2', name: 'सुरेश कुमार', role: 'टेक्नीशियन', phone: '9876543211', vehicle: 'DL3C-AE-7740', ordersToday: 9, rating: '4.7', status: 'busy' }
+    ];
 
+    let mechanicsList = (function() {
+      try {
+        const saved = localStorage.getItem('pw_mechanics_team');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch(e) {}
+      return [...defaultMechanicsList];
+    })();
+
+    let mechanicIdToDelete = null;
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function renderMechanicsGrid() {
+      const grid = document.getElementById('mechanics-cards-grid');
+      const countBadge = document.getElementById('mechanic-count-badge');
+      if (countBadge) {
+        countBadge.innerText = `${mechanicsList.length} सदस्य`;
+      }
+      if (!grid) return;
+
+      const cardsHtml = mechanicsList.map(m => {
+        const isFree = m.status === 'free';
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3 relative group hover:shadow-md transition">
+            <!-- Header: Avatar, Name, Role & Status Badge -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-12 h-12 rounded-xl bg-slate-800 text-amber-400 flex items-center justify-center text-xl font-black shrink-0 border border-slate-700 shadow-sm">
+                  <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-bold text-sm text-slate-900 truncate">${escapeHtml(m.name)}</h3>
+                  <p class="text-[10px] text-slate-500 font-medium truncate">${escapeHtml(m.role || 'टेक्नीशियन')}</p>
+                </div>
+              </div>
+
+              <!-- Status Badge -->
+              <div class="flex items-center gap-1 shrink-0">
+                ${isFree ? `
+                  <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> फ्री
+                  </span>
+                ` : `
+                  <span class="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> व्यस्त
+                  </span>
+                `}
+              </div>
+            </div>
+
+            <!-- Stats: Orders Today & Rating -->
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                <p class="text-slate-400 text-[10px] font-semibold">आज ऑर्डर</p>
+                <p class="font-black text-slate-900 text-sm mt-0.5">${m.ordersToday || 0}</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                <p class="text-slate-400 text-[10px] font-semibold">रेटिंग</p>
+                <p class="font-black text-amber-600 text-sm mt-0.5">${escapeHtml(m.rating || '4.8')} ★</p>
+              </div>
+            </div>
+
+            <!-- Vehicle & Phone info bar -->
+            <div class="flex items-center justify-between text-xs text-slate-600 bg-slate-50/80 px-3 py-2 rounded-xl border border-slate-100">
+              <span class="font-mono font-medium flex items-center gap-1.5 truncate">
+                <i class="fa-solid fa-truck-pickup text-amber-500 text-xs"></i>
+                ${escapeHtml(m.vehicle || 'गाड़ी उपलब्ध नहीं')}
+              </span>
+              <span class="text-[11px] font-mono font-bold text-slate-700 shrink-0">
+                <i class="fa-solid fa-phone text-emerald-600 mr-1 text-[10px]"></i>${escapeHtml(m.phone || '—')}
+              </span>
+            </div>
+
+            <!-- Primary Actions: Status Toggle & Direct Call -->
+            <div class="flex gap-2">
+              ${isFree ? `
+                <button onclick="toggleMechanicStatusById('${m.id}', 'free')" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition shadow-sm active:scale-95 flex items-center justify-center gap-1">
+                  <i class="fa-solid fa-pause text-[11px]"></i> व्यस्त करें
+                </button>
+              ` : `
+                <button onclick="toggleMechanicStatusById('${m.id}', 'busy')" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-2 rounded-xl text-xs transition shadow-sm active:scale-95 flex items-center justify-center gap-1">
+                  <i class="fa-solid fa-play text-[11px]"></i> फ्री करें
+                </button>
+              `}
+              <a href="tel:${escapeHtml(m.phone || '')}" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-sm active:scale-95">
+                <i class="fa-solid fa-phone text-[10px]"></i> कॉल
+              </a>
+            </div>
+
+            <!-- Dedicated Edit & Delete Row (User Request) -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+              <button onclick="openEditMechanicModal('${m.id}')"
+                class="bg-slate-100 hover:bg-amber-100 hover:text-amber-900 hover:border-amber-300 text-slate-700 border border-slate-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95">
+                <i class="fa-solid fa-pen-to-square text-amber-600"></i> एडिट करें
+              </button>
+              <button onclick="openDeleteMechanicModal('${m.id}')"
+                class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 hover:border-rose-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95">
+                <i class="fa-solid fa-trash-can text-rose-600"></i> हटाएं
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Add New Mechanic Dashed Card at the end
+      const addCardHtml = `
+        <div class="bg-slate-50 border-2 border-dashed border-slate-300 hover:border-amber-400 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-amber-50/30 transition group min-h-[240px]" onclick="openAddMechanicModal()">
+          <div class="w-12 h-12 bg-white group-hover:bg-amber-500 group-hover:text-slate-950 rounded-xl flex items-center justify-center text-slate-400 text-xl border border-slate-200 group-hover:border-amber-400 transition shadow-sm">
+            <i class="fa-solid fa-plus"></i>
+          </div>
+          <div class="text-center">
+            <p class="text-xs text-slate-700 group-hover:text-slate-950 font-bold">नया मैकेनिक जोड़ें</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">टीम में नया सदस्य शामिल करें</p>
+          </div>
+        </div>
+      `;
+
+      grid.innerHTML = cardsHtml + addCardHtml;
+    }
+
+    function openAddMechanicModal() {
+      document.getElementById('mechanic-form-id').value = '';
+      document.getElementById('mechanic-form-name').value = '';
+      document.getElementById('mechanic-form-role').value = 'टेक्नीशियन';
+      document.getElementById('mechanic-form-phone').value = '';
+      document.getElementById('mechanic-form-vehicle').value = '';
+      document.getElementById('mechanic-form-rating').value = '4.9';
+      document.getElementById('mechanic-form-status').value = 'free';
+      document.getElementById('mechanic-form-orders').value = '0';
+
+      document.getElementById('mechanic-modal-title').innerText = 'नया मैकेनिक जोड़ें';
+      document.getElementById('mechanic-modal-subtitle').innerText = 'टीम में नया मैकेनिक और गाड़ी का विवरण दर्ज करें';
+      document.getElementById('mechanic-modal-icon').className = 'fa-solid fa-user-plus';
+      document.getElementById('mechanic-form-submit-btn').innerHTML = '<i class="fa-solid fa-plus"></i> मैकेनिक जोड़ें';
+
+      const modal = document.getElementById('mechanic-form-modal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function openEditMechanicModal(id) {
+      const m = mechanicsList.find(x => x.id === id);
+      if (!m) return;
+
+      document.getElementById('mechanic-form-id').value = m.id;
+      document.getElementById('mechanic-form-name').value = m.name || '';
+      document.getElementById('mechanic-form-role').value = m.role || '';
+      document.getElementById('mechanic-form-phone').value = m.phone || '';
+      document.getElementById('mechanic-form-vehicle').value = m.vehicle || '';
+      document.getElementById('mechanic-form-rating').value = m.rating || '4.9';
+      document.getElementById('mechanic-form-status').value = m.status || 'free';
+      document.getElementById('mechanic-form-orders').value = m.ordersToday || 0;
+
+      document.getElementById('mechanic-modal-title').innerText = 'मैकेनिक एडिट करें';
+      document.getElementById('mechanic-modal-subtitle').innerText = `"${m.name}" की जानकारी और ड्यूटी स्टेटस अपडेट करें`;
+      document.getElementById('mechanic-modal-icon').className = 'fa-solid fa-user-pen';
+      document.getElementById('mechanic-form-submit-btn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> सुरक्षित करें';
+
+      const modal = document.getElementById('mechanic-form-modal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeMechanicModal() {
+      const modal = document.getElementById('mechanic-form-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleMechanicFormSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('mechanic-form-id').value.trim();
+      const name = document.getElementById('mechanic-form-name').value.trim();
+      const role = document.getElementById('mechanic-form-role').value.trim() || 'टेक्नीशियन';
+      const phone = document.getElementById('mechanic-form-phone').value.trim();
+      const vehicle = document.getElementById('mechanic-form-vehicle').value.trim();
+      const rating = document.getElementById('mechanic-form-rating').value;
+      const status = document.getElementById('mechanic-form-status').value;
+      const ordersToday = parseInt(document.getElementById('mechanic-form-orders').value) || 0;
+
+      if (!name) {
+        showToast('⚠️ कृपया मैकेनिक का नाम दर्ज करें');
+        return;
+      }
+
+      if (id) {
+        // Update existing
+        const idx = mechanicsList.findIndex(x => x.id === id);
+        if (idx !== -1) {
+          mechanicsList[idx] = {
+            ...mechanicsList[idx],
+            name, role, phone, vehicle, rating, status, ordersToday
+          };
+        }
+      } else {
+        // Create new
+        const newId = 'M-' + Date.now().toString().slice(-4);
+        mechanicsList.push({
+          id: newId,
+          name, role, phone, vehicle, rating, status, ordersToday
+        });
+      }
+
+      try {
+        localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList));
+      } catch(err) {}
+
+      renderMechanicsGrid();
+      closeMechanicModal();
+      showToast(id ? '✅ मैकेनिक जानकारी अपडेट हो गई!' : '✅ नया मैकेनिक टीम में शामिल हो गया!');
+
+      // Sync to Server
+      fetch(`${SERVER}/api/mechanics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, role, phone, vehicle, rating, status, ordersToday })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && Array.isArray(res.mechanics)) {
+          mechanicsList = res.mechanics;
+          try { localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList)); } catch(err){}
+          renderMechanicsGrid();
+        }
+      })
+      .catch(() => {});
+    }
+
+    function openDeleteMechanicModal(id) {
+      const m = mechanicsList.find(x => x.id === id);
+      if (!m) return;
+      mechanicIdToDelete = id;
+      const nameEl = document.getElementById('delete-mechanic-display-name');
+      if (nameEl) nameEl.innerText = `"${m.name}"`;
+
+      const modal = document.getElementById('mechanic-delete-modal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeDeleteMechanicModal() {
+      mechanicIdToDelete = null;
+      const modal = document.getElementById('mechanic-delete-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function executeDeleteMechanic() {
+      if (!mechanicIdToDelete) return;
+      const id = mechanicIdToDelete;
+      const removed = mechanicsList.find(x => x.id === id);
+      mechanicsList = mechanicsList.filter(x => x.id !== id);
+
+      try {
+        localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList));
+      } catch(err) {}
+
+      renderMechanicsGrid();
+      closeDeleteMechanicModal();
+      showToast(`🗑️ ${removed ? removed.name : 'मैकेनिक'} टीम से हटा दिया गया`);
+
+      // Sync deletion to server
+      fetch(`${SERVER}/api/delete-mechanic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && Array.isArray(res.mechanics)) {
+          mechanicsList = res.mechanics;
+          try { localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList)); } catch(err){}
+          renderMechanicsGrid();
+        }
+      })
+      .catch(() => {});
+    }
+
+    function toggleMechanicStatusById(id, currentStatus) {
+      const m = mechanicsList.find(x => x.id === id);
+      if (!m) return;
+      const newStatus = (currentStatus === 'free' || m.status === 'free') ? 'busy' : 'free';
+      m.status = newStatus;
+
+      try {
+        localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList));
+      } catch(err) {}
+
+      renderMechanicsGrid();
+
+      if (newStatus === 'busy') {
+        showToast(`🟠 ${m.name} व्यस्त मार्क किया गया — ग्राहकों को वेटिंग टाइम दिखेगा`);
         fetch(`${SERVER}/api/van-status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ free: false, busyMinutes: 16, queueCount: 1 })
         }).catch(() => {});
       } else {
-        badge.className = 'text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1';
-        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> फ्री';
-        btn.innerText = 'व्यस्त करें';
-        btn.onclick = () => toggleMechanicStatus(btn, 'free');
-        btn.className = btn.className.replace('bg-emerald-500 hover:bg-emerald-400 text-white', 'bg-amber-500 hover:bg-amber-400 text-slate-950');
-        showToast('✅ मैकेनिक फ्री मार्क किया गया — वैन तुरंत उपलब्ध');
-
+        showToast(`✅ ${m.name} फ्री मार्क किया गया — वैन तुरंत उपलब्ध`);
         fetch(`${SERVER}/api/van-status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ free: true, busyMinutes: 0, queueCount: 0 })
         }).catch(() => {});
       }
+
+      // Sync to Server
+      fetch(`${SERVER}/api/mechanics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: m.id, status: newStatus })
+      }).catch(() => {});
     }
+
+    function fetchMechanics() {
+      fetch(`${SERVER}/api/mechanics`)
+        .then(r => r.json())
+        .then(res => {
+          if (res && Array.isArray(res.mechanics)) {
+            mechanicsList = res.mechanics;
+            try { localStorage.setItem('pw_mechanics_team', JSON.stringify(mechanicsList)); } catch(err){}
+            renderMechanicsGrid();
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Modal backdrop click
+    document.getElementById('mechanic-form-modal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeMechanicModal();
+    });
+    document.getElementById('mechanic-delete-modal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeDeleteMechanicModal();
+    });
 
     // ---- Inventory Stock Adjust ----
     function adjustStock(btn, delta) {
@@ -3645,6 +3921,133 @@
         <strong id="otp-loading-order-id" class="text-amber-400">PW-1001</strong>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ══ MECHANIC ADD / EDIT MODAL ══ -->
+  <div id="mechanic-form-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in border border-slate-200">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center text-base font-bold border border-amber-500/30">
+            <i id="mechanic-modal-icon" class="fa-solid fa-user-pen"></i>
+          </div>
+          <div>
+            <h2 id="mechanic-modal-title" class="font-extrabold text-slate-900 text-base">मैकेनिक एडिट करें</h2>
+            <p id="mechanic-modal-subtitle" class="text-xs text-slate-500">मैकेनिक की जानकारी और ड्यूटी स्टेटस अपडेट करें</p>
+          </div>
+        </div>
+        <button onclick="closeMechanicModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleMechanicFormSubmit(event)" class="p-5 space-y-3.5">
+        <input type="hidden" id="mechanic-form-id" value="">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">मैकेनिक का नाम <span class="text-rose-500">*</span></label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3 top-3 text-slate-400 text-xs"></i>
+            <input type="text" id="mechanic-form-name" required placeholder="जैसे: रमेश मिस्त्री"
+              class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">पद / भूमिका</label>
+            <input type="text" id="mechanic-form-role" placeholder="जैसे: वरिष्ठ टेक्नीशियन" list="roles-preset"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900">
+            <datalist id="roles-preset">
+              <option value="वरिष्ठ टेक्नीशियन">
+              <option value="टेक्नीशियन">
+              <option value="टायर स्पेशलिस्ट">
+              <option value="इमरजेंसी राइडर">
+              <option value="सहायक मैकेनिक">
+            </datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">फ़ोन नंबर <span class="text-rose-500">*</span></label>
+            <div class="relative">
+              <i class="fa-solid fa-phone absolute left-3 top-3 text-slate-400 text-xs"></i>
+              <input type="tel" id="mechanic-form-phone" required placeholder="9876543210" maxlength="10"
+                class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900 font-mono">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">गाड़ी / वैन नंबर</label>
+            <div class="relative">
+              <i class="fa-solid fa-truck-pickup absolute left-3 top-3 text-slate-400 text-xs"></i>
+              <input type="text" id="mechanic-form-vehicle" placeholder="HP64-BT-9821"
+                class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900 uppercase font-mono">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">रेटिंग (★)</label>
+            <select id="mechanic-form-rating"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900">
+              <option value="5.0">5.0 ★ (उत्कृष्ट)</option>
+              <option value="4.9">4.9 ★ (बहुत बढ़िया)</option>
+              <option value="4.8">4.8 ★ (बढ़िया)</option>
+              <option value="4.7">4.7 ★ (अच्छा)</option>
+              <option value="4.5">4.5 ★ (सामान्य)</option>
+              <option value="4.0">4.0 ★</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">ड्यूटी स्टेटस</label>
+            <select id="mechanic-form-status"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900">
+              <option value="free">🟢 फ्री (उपलब्ध)</option>
+              <option value="busy">🟡 व्यस्त (काम पर)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">आज के ऑर्डर</label>
+            <input type="number" id="mechanic-form-orders" min="0" value="0"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900 font-mono">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex gap-2 justify-end">
+          <button type="button" onclick="closeMechanicModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            रद्द करें
+          </button>
+          <button type="submit" id="mechanic-form-submit-btn" class="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition flex items-center gap-1.5 active:scale-95">
+            <i class="fa-solid fa-floppy-disk"></i> सुरक्षित करें
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══ MECHANIC DELETE CONFIRMATION MODAL ══ -->
+  <div id="mechanic-delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in border border-slate-200">
+      <div class="p-6 text-center space-y-3">
+        <div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center text-2xl shadow-inner border border-rose-200">
+          <i class="fa-solid fa-trash-can animate-bounce"></i>
+        </div>
+        <div>
+          <h3 class="font-extrabold text-slate-900 text-base">मैकेनिक को हटाएं?</h3>
+          <p class="text-xs text-slate-500 mt-1">क्या आप वाकई <strong id="delete-mechanic-display-name" class="text-slate-900 font-bold"></strong> को टीम से हटाना चाहते हैं? यह मैकेनिक लिस्ट से हट जाएगा।</p>
+        </div>
+      </div>
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex gap-2 justify-end">
+        <button onclick="closeDeleteMechanicModal()" class="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 transition">
+          रद्द करें
+        </button>
+        <button onclick="executeDeleteMechanic()" class="flex-1 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30 transition flex items-center justify-center gap-1.5 active:scale-95">
+          <i class="fa-solid fa-trash"></i> हां, हटाएं
+        </button>
+      </div>
     </div>
   </div>
 </body>

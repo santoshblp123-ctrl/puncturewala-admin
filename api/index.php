@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$dataDir = dirname(__DIR__) . '/data';
+$dataDir = __DIR__ . '/data';
 if (!is_dir($dataDir)) {
     @mkdir($dataDir, 0777, true);
 }
@@ -22,6 +22,16 @@ if (!is_dir($dataDir)) {
 $ordersFile = $dataDir . '/orders.json';
 $stateFile  = $dataDir . '/state.json';
 $usersFile  = $dataDir . '/users.json';
+$mechanicsFile = $dataDir . '/mechanics.json';
+
+// Initialize default mechanics if not exists
+if (!file_exists($mechanicsFile)) {
+    $defaultMechanics = [
+        ['id' => 'M-1', 'name' => 'रमेश मिस्त्री', 'role' => 'वरिष्ठ टेक्नीशियन', 'phone' => '9876543210', 'vehicle' => 'HP64-BT-9821', 'ordersToday' => 12, 'rating' => '4.9', 'status' => 'free'],
+        ['id' => 'M-2', 'name' => 'सुरेश कुमार', 'role' => 'टेक्नीशियन', 'phone' => '9876543211', 'vehicle' => 'DL3C-AE-7740', 'ordersToday' => 9, 'rating' => '4.7', 'status' => 'busy']
+    ];
+    file_put_contents($mechanicsFile, json_encode($defaultMechanics, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
 
 // Initialize default orders if not exists (starts fresh with 0 orders)
 if (!file_exists($ordersFile)) {
@@ -81,6 +91,23 @@ function getUsers() {
 function saveUsers($users) {
     global $usersFile;
     file_put_contents($usersFile, json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function getMechanics() {
+    global $mechanicsFile;
+    if (!file_exists($mechanicsFile)) {
+        return [
+            ['id' => 'M-1', 'name' => 'रमेश मिस्त्री', 'role' => 'वरिष्ठ टेक्नीशियन', 'phone' => '9876543210', 'vehicle' => 'HP64-BT-9821', 'ordersToday' => 12, 'rating' => '4.9', 'status' => 'free'],
+            ['id' => 'M-2', 'name' => 'सुरेश कुमार', 'role' => 'टेक्नीशियन', 'phone' => '9876543211', 'vehicle' => 'DL3C-AE-7740', 'ordersToday' => 9, 'rating' => '4.7', 'status' => 'busy']
+        ];
+    }
+    $data = file_get_contents($mechanicsFile);
+    return json_decode($data, true) ?: [];
+}
+
+function saveMechanics($mechanics) {
+    global $mechanicsFile;
+    file_put_contents($mechanicsFile, json_encode($mechanics, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
 function getState() {
@@ -331,6 +358,73 @@ if ($route === 'shop-location') {
     }
 }
 
+// ── GET/POST /api/mechanics ────────────────────────────
+if ($route === 'mechanics') {
+    if ($method === 'GET') {
+        jsonResponse(['success' => true, 'mechanics' => getMechanics()]);
+    }
+    if ($method === 'POST') {
+        $body = getRequestBody();
+        $mechanics = getMechanics();
+        if (!empty($body['id'])) {
+            $updated = false;
+            foreach ($mechanics as &$m) {
+                if ($m['id'] === $body['id']) {
+                    if (isset($body['name'])) $m['name'] = $body['name'];
+                    if (isset($body['role'])) $m['role'] = $body['role'];
+                    if (isset($body['phone'])) $m['phone'] = $body['phone'];
+                    if (isset($body['vehicle'])) $m['vehicle'] = $body['vehicle'];
+                    if (isset($body['rating'])) $m['rating'] = $body['rating'];
+                    if (isset($body['status'])) $m['status'] = $body['status'];
+                    if (isset($body['ordersToday'])) $m['ordersToday'] = (int)$body['ordersToday'];
+                    $updated = true;
+                    break;
+                }
+            }
+            if (!$updated) {
+                $mechanics[] = [
+                    'id' => $body['id'],
+                    'name' => $body['name'] ?? 'नया मैकेनिक',
+                    'role' => $body['role'] ?? 'टेक्नीशियन',
+                    'phone' => $body['phone'] ?? '',
+                    'vehicle' => $body['vehicle'] ?? '',
+                    'rating' => $body['rating'] ?? '4.8',
+                    'status' => $body['status'] ?? 'free',
+                    'ordersToday' => (int)($body['ordersToday'] ?? 0)
+                ];
+            }
+        } else {
+            $newId = 'M-' . rand(1000, 9999);
+            $mechanics[] = [
+                'id' => $newId,
+                'name' => $body['name'] ?? 'नया मैकेनिक',
+                'role' => $body['role'] ?? 'टेक्नीशियन',
+                'phone' => $body['phone'] ?? '',
+                'vehicle' => $body['vehicle'] ?? '',
+                'rating' => $body['rating'] ?? '5.0',
+                'status' => $body['status'] ?? 'free',
+                'ordersToday' => (int)($body['ordersToday'] ?? 0)
+            ];
+        }
+        saveMechanics($mechanics);
+        jsonResponse(['success' => true, 'mechanics' => $mechanics]);
+    }
+}
+
+// ── POST /api/delete-mechanic ──────────────────────────
+if ($route === 'delete-mechanic' && $method === 'POST') {
+    $body = getRequestBody();
+    $id = $body['id'] ?? ($body['mechanicId'] ?? '');
+    $mechanics = getMechanics();
+    if (!empty($id)) {
+        $mechanics = array_values(array_filter($mechanics, function($m) use ($id) {
+            return $m['id'] !== $id;
+        }));
+        saveMechanics($mechanics);
+    }
+    jsonResponse(['success' => true, 'mechanics' => $mechanics]);
+}
+
 // ── GET /api/track/:orderId ────────────────────────────
 if (strpos($route, 'track') === 0 && $method === 'GET') {
     $parts = explode('/', $route);
@@ -383,6 +477,7 @@ if ($route === 'events' && $method === 'GET') {
     if (!empty($state['shopLocation'])) {
         echo "event: shop-location-updated\ndata: " . json_encode($state['shopLocation']) . "\n\n";
     }
+    echo "event: mechanics-updated\ndata: " . json_encode(getMechanics(), JSON_UNESCAPED_UNICODE) . "\n\n";
     echo "retry: 3000\n\n";
     @flush();
     exit;
