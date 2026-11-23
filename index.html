@@ -205,7 +205,7 @@
           </div>
         </div>
 
-        <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
+        <a id="header-open-cust-app" href="/" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
           <i class="fa-solid fa-mobile-screen"></i>
           <span class="hidden sm:inline">ग्राहक ऐप खोलें</span>
         </a>
@@ -1018,9 +1018,22 @@
 
     const SERVER = (function() {
       if (typeof window !== 'undefined' && window.location) {
-        if (window.location.protocol.startsWith('file')) return 'https://puncherwala.in';
-        if (window.location.hostname.includes('github.io')) return 'https://puncherwala.in';
-        return window.location.origin;
+        const proto = window.location.protocol;
+        const host = window.location.hostname;
+        const origin = window.location.origin;
+
+        // If running inside Android APK (file://) or GitHub Pages
+        if (proto.startsWith('file') || host.includes('github.io')) {
+          return 'https://puncherwala.in';
+        }
+        // If local development on localhost or 127.0.0.1
+        if (host === 'localhost' || host === '127.0.0.1') {
+          return origin;
+        }
+        // Production or custom domain
+        if (origin && !origin.startsWith('file:') && origin !== 'null') {
+          return origin;
+        }
       }
       return 'https://puncherwala.in';
     })();
@@ -2458,7 +2471,14 @@
 
       initNotificationPermissionPrompt();
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('../sw.js?v=5').catch(() => {});
+        const swPath = window.location.pathname.includes('/admin') ? '../sw.js?v=5' : './sw.js?v=5';
+        navigator.serviceWorker.register(swPath).catch(() => {});
+      }
+
+      // Ensure customer app link points to active server environment
+      const custAppBtn = document.getElementById('header-open-cust-app');
+      if (custAppBtn) {
+        custAppBtn.href = `${SERVER}/`;
       }
 
       connectSSE(); // 🔌 Connect to live relay server

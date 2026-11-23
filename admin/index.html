@@ -149,7 +149,63 @@
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
-        <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
+        <!-- 🔔 Notification Bell Button with Live Unread Counter -->
+        <div class="relative">
+          <button id="admin-notif-bell-btn" type="button" onclick="toggleAdminNotifDrawer()" title="सूचना केंद्र (Notifications)"
+            class="relative w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-100/70 text-slate-700 hover:text-amber-600 flex items-center justify-center transition shadow-xs active:scale-95 cursor-pointer">
+            <i class="fa-solid fa-bell text-base"></i>
+            <!-- Unread Badge Ping & Counter -->
+            <span id="admin-notif-badge-ping" class="hidden absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full animate-ping"></span>
+            <span id="admin-notif-badge" class="hidden absolute -top-1 -right-1 min-w-[19px] h-[19px] bg-red-600 text-white text-[10px] font-black rounded-full px-1 flex items-center justify-center shadow-md border-2 border-white">0</span>
+          </button>
+
+          <!-- 🔔 Floating Notification Drawer / Popover (Desktop & Mobile) -->
+          <div id="admin-notif-drawer" class="hidden fixed sm:absolute right-3 sm:right-0 top-16 sm:top-12 w-[calc(100vw-24px)] sm:w-[390px] bg-white rounded-3xl shadow-2xl border border-slate-200 z-[100] overflow-hidden animate-fade-in text-slate-900">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white px-4 py-3.5 flex items-center justify-between border-b border-slate-800">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-sm font-black shrink-0 shadow-xs">
+                  <i class="fa-solid fa-bell"></i>
+                </div>
+                <div class="truncate">
+                  <h3 class="font-black text-xs sm:text-sm flex items-center gap-1.5 leading-tight truncate">
+                    <span>सूचना केंद्र (Notifications)</span>
+                    <span id="notif-drawer-unread-pill" class="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded-full shrink-0">0 नया</span>
+                  </h3>
+                  <p class="text-[10px] text-slate-400 mt-0.5 truncate">सभी अलर्ट यहाँ सुरक्षित हैं</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="markAllNotificationsAsRead()" title="सभी पढ़ें" class="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-bold px-2 py-1 rounded-lg transition border border-slate-700 flex items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-check-double text-[10px]"></i>
+                  <span class="hidden sm:inline">सभी पढ़ें</span>
+                </button>
+                <button type="button" onclick="clearAllNotifications()" title="सभी साफ़ करें" class="text-[10px] bg-slate-800 hover:bg-red-950/80 active:scale-95 text-slate-400 hover:text-red-300 font-bold px-2 py-1 rounded-lg transition border border-slate-700 flex items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-trash-can text-[10px]"></i>
+                </button>
+                <button type="button" onclick="toggleAdminNotifDrawer(false)" class="w-7 h-7 text-slate-400 hover:text-white rounded-lg flex items-center justify-center transition hover:bg-slate-800 text-xs cursor-pointer">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter tabs -->
+            <div class="flex items-center justify-between px-3.5 py-2 bg-slate-50 border-b border-slate-200 text-xs">
+              <div class="inline-flex bg-slate-200/90 p-0.5 rounded-xl text-[11px] font-bold">
+                <button type="button" onclick="filterNotifDrawer('all')" id="tab-notif-all" class="px-3 py-1 rounded-lg bg-white text-slate-950 shadow-xs font-black transition cursor-pointer">सभी (<span id="notif-total-count">0</span>)</button>
+                <button type="button" onclick="filterNotifDrawer('unread')" id="tab-notif-unread" class="px-3 py-1 rounded-lg text-slate-600 font-bold hover:text-slate-950 transition cursor-pointer">अपठित (<span id="notif-unread-count">0</span>)</button>
+              </div>
+              <span class="text-[10px] text-slate-500 font-medium hidden sm:inline">क्लिक करके तुरंत देखें</span>
+            </div>
+
+            <!-- Notification list container -->
+            <div id="admin-notif-list" class="max-h-[350px] overflow-y-auto divide-y divide-slate-100 p-2 space-y-1.5 no-scrollbar">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <a id="header-open-cust-app" href="/" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
           <i class="fa-solid fa-mobile-screen"></i>
           <span class="hidden sm:inline">ग्राहक ऐप खोलें</span>
         </a>
@@ -962,9 +1018,22 @@
 
     const SERVER = (function() {
       if (typeof window !== 'undefined' && window.location) {
-        if (window.location.protocol.startsWith('file')) return 'https://puncherwala.in';
-        if (window.location.hostname.includes('github.io')) return 'https://puncherwala.in';
-        return window.location.origin;
+        const proto = window.location.protocol;
+        const host = window.location.hostname;
+        const origin = window.location.origin;
+
+        // If running inside Android APK (file://) or GitHub Pages
+        if (proto.startsWith('file') || host.includes('github.io')) {
+          return 'https://puncherwala.in';
+        }
+        // If local development on localhost or 127.0.0.1
+        if (host === 'localhost' || host === '127.0.0.1') {
+          return origin;
+        }
+        // Production or custom domain
+        if (origin && !origin.startsWith('file:') && origin !== 'null') {
+          return origin;
+        }
       }
       return 'https://puncherwala.in';
     })();
@@ -1049,6 +1118,279 @@
 
       // 4. In-App Floating Visual Banner
       showInAppFloatingBanner(title, body, url);
+
+      // 5. 🔔 Notification Center (Stored in Bell Icon until viewed)
+      addAdminNotification({
+        title: title,
+        body: body,
+        url: url,
+        type: type,
+        timestamp: Date.now()
+      });
+    }
+
+    // ══════════════════════════════════════════════
+    //  🔔 NOTIFICATION CENTER SYSTEM (BELL ICON)
+    // ══════════════════════════════════════════════
+    let adminNotifications = [];
+    let currentNotifFilter = 'all';
+
+    function loadAdminNotifications() {
+      try {
+        const saved = localStorage.getItem('pw_admin_notifications');
+        if (saved) {
+          adminNotifications = JSON.parse(saved);
+        }
+      } catch (e) {
+        adminNotifications = [];
+      }
+
+      if (!Array.isArray(adminNotifications) || adminNotifications.length === 0) {
+        // Initial friendly onboarding notification
+        adminNotifications = [
+          {
+            id: 'notif_welcome_1',
+            title: '🔔 सूचना केंद्र (Notification Center) लाइव',
+            body: 'कोई भी नया ऑर्डर, मैकेनिक स्टेटस या ग्राहक लॉगिन यहाँ सुरक्षित रहेगा जब तक आप इसे देख नहीं लेते।',
+            url: './admin',
+            type: 'welcome',
+            timestamp: Date.now() - 120000,
+            read: false
+          }
+        ];
+        try {
+          localStorage.setItem('pw_admin_notifications', JSON.stringify(adminNotifications));
+        } catch(e) {}
+      }
+
+      updateAdminNotifBadge();
+      renderAdminNotifList();
+    }
+
+    function addAdminNotification({ title, body, url = './admin', type = 'newOrder', orderId = null }) {
+      const item = {
+        id: 'notif_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+        title: title || 'नया अलर्ट',
+        body: body || '',
+        url: url,
+        type: type,
+        orderId: orderId,
+        timestamp: Date.now(),
+        read: false
+      };
+
+      // De-duplicate if identical within last 2 seconds
+      const isDup = adminNotifications.some(n =>
+        n.title === item.title && n.body === item.body && Math.abs(item.timestamp - n.timestamp) < 2500
+      );
+      if (isDup) return;
+
+      adminNotifications.unshift(item);
+      if (adminNotifications.length > 80) adminNotifications.length = 80;
+
+      try {
+        localStorage.setItem('pw_admin_notifications', JSON.stringify(adminNotifications));
+      } catch (e) {}
+
+      updateAdminNotifBadge(true);
+      renderAdminNotifList();
+    }
+
+    function updateAdminNotifBadge(shouldShake = false) {
+      const unreadCount = adminNotifications.filter(n => !n.read).length;
+      const badge = document.getElementById('admin-notif-badge');
+      const ping = document.getElementById('admin-notif-badge-ping');
+      const pill = document.getElementById('notif-drawer-unread-pill');
+      const bellBtn = document.getElementById('admin-notif-bell-btn');
+      const unreadTabCount = document.getElementById('notif-unread-count');
+      const totalTabCount = document.getElementById('notif-total-count');
+
+      if (totalTabCount) totalTabCount.textContent = adminNotifications.length;
+      if (unreadTabCount) unreadTabCount.textContent = unreadCount;
+      if (pill) pill.textContent = `${unreadCount} नया`;
+
+      if (unreadCount > 0) {
+        if (badge) {
+          badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+          badge.classList.remove('hidden');
+        }
+        if (ping) ping.classList.remove('hidden');
+        if (shouldShake && bellBtn) {
+          bellBtn.classList.remove('animate-bounce');
+          void bellBtn.offsetWidth;
+          bellBtn.classList.add('animate-bounce');
+          setTimeout(() => bellBtn.classList.remove('animate-bounce'), 1500);
+        }
+      } else {
+        if (badge) badge.classList.add('hidden');
+        if (ping) ping.classList.add('hidden');
+      }
+    }
+
+    function toggleAdminNotifDrawer(force) {
+      const drawer = document.getElementById('admin-notif-drawer');
+      if (!drawer) return;
+      if (typeof force === 'boolean') {
+        if (force) drawer.classList.remove('hidden');
+        else drawer.classList.add('hidden');
+      } else {
+        drawer.classList.toggle('hidden');
+      }
+      if (!drawer.classList.contains('hidden')) {
+        renderAdminNotifList();
+      }
+    }
+
+    function filterNotifDrawer(filter) {
+      currentNotifFilter = filter;
+      const tabAll = document.getElementById('tab-notif-all');
+      const tabUnread = document.getElementById('tab-notif-unread');
+      if (tabAll && tabUnread) {
+        if (filter === 'all') {
+          tabAll.className = 'px-3 py-1 rounded-lg bg-white text-slate-950 shadow-xs font-black transition cursor-pointer';
+          tabUnread.className = 'px-3 py-1 rounded-lg text-slate-600 font-bold hover:text-slate-950 transition cursor-pointer';
+        } else {
+          tabUnread.className = 'px-3 py-1 rounded-lg bg-white text-slate-950 shadow-xs font-black transition cursor-pointer';
+          tabAll.className = 'px-3 py-1 rounded-lg text-slate-600 font-bold hover:text-slate-950 transition cursor-pointer';
+        }
+      }
+      renderAdminNotifList();
+    }
+
+    function handleNotificationClick(id) {
+      const item = adminNotifications.find(n => n.id === id);
+      if (!item) return;
+
+      item.read = true;
+      try {
+        localStorage.setItem('pw_admin_notifications', JSON.stringify(adminNotifications));
+      } catch (e) {}
+
+      updateAdminNotifBadge();
+      renderAdminNotifList();
+
+      if (item.type === 'newOrder' || item.type === 'accepted' || item.type === 'completed' || item.type === 'cancelled' || item.orderId) {
+        showPanel('panel-orders');
+      } else if (item.type === 'userLogin') {
+        showPanel('panel-users');
+      }
+      toggleAdminNotifDrawer(false);
+    }
+
+    function markAllNotificationsAsRead() {
+      adminNotifications.forEach(n => n.read = true);
+      try {
+        localStorage.setItem('pw_admin_notifications', JSON.stringify(adminNotifications));
+      } catch (e) {}
+      updateAdminNotifBadge();
+      renderAdminNotifList();
+      showToast('✅ सभी नोटिफिकेशन पढ़े गए मार्क कर दिए गए');
+    }
+
+    function clearAllNotifications() {
+      if (!confirm('क्या आप सभी पुराने नोटिफिकेशन साफ़ करना चाहते हैं?')) return;
+      adminNotifications = [];
+      try {
+        localStorage.removeItem('pw_admin_notifications');
+      } catch (e) {}
+      updateAdminNotifBadge();
+      renderAdminNotifList();
+      showToast('🗑️ नोटिफिकेशन सेंटर खाली कर दिया गया');
+    }
+
+    function formatRelativeTime(ts) {
+      if (!ts) return 'अभी';
+      const diffSec = Math.floor((Date.now() - ts) / 1000);
+      if (diffSec < 45) return 'अभी-अभी';
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)} मि. पहले`;
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} घंटे पहले`;
+      return new Date(ts).toLocaleDateString('hi-IN', { day: 'numeric', month: 'short' });
+    }
+
+    function renderAdminNotifList() {
+      const listEl = document.getElementById('admin-notif-list');
+      if (!listEl) return;
+
+      const displayList = currentNotifFilter === 'unread'
+        ? adminNotifications.filter(n => !n.read)
+        : adminNotifications;
+
+      if (displayList.length === 0) {
+        listEl.innerHTML = `
+          <div class="py-10 px-4 text-center space-y-2">
+            <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center text-xl mx-auto shadow-inner">
+              <i class="fa-solid fa-bell-slash"></i>
+            </div>
+            <p class="text-xs font-extrabold text-slate-700">${currentNotifFilter === 'unread' ? 'कोई नया अपठित नोटिफिकेशन नहीं है' : 'अभी कोई नोटिफिकेशन नहीं है'}</p>
+            <p class="text-[10px] text-slate-400">नया ऑर्डर या अलर्ट आने पर यहाँ दिखाई देगा</p>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = displayList.map(n => {
+        let iconHtml = '<i class="fa-solid fa-bell text-amber-500"></i>';
+        let bgIcon = 'bg-amber-50 border-amber-200';
+        if (n.type === 'newOrder' || n.type === 'emergency') {
+          iconHtml = '<i class="fa-solid fa-triangle-exclamation text-red-600"></i>';
+          bgIcon = 'bg-red-50 border-red-200';
+        } else if (n.type === 'accepted' || n.type === 'mechanic') {
+          iconHtml = '<i class="fa-solid fa-truck-fast text-blue-600"></i>';
+          bgIcon = 'bg-blue-50 border-blue-200';
+        } else if (n.type === 'completed') {
+          iconHtml = '<i class="fa-solid fa-circle-check text-emerald-600"></i>';
+          bgIcon = 'bg-emerald-50 border-emerald-200';
+        } else if (n.type === 'cancelled') {
+          iconHtml = '<i class="fa-solid fa-ban text-red-600"></i>';
+          bgIcon = 'bg-red-50 border-red-200';
+        } else if (n.type === 'userLogin') {
+          iconHtml = '<i class="fa-solid fa-user-check text-purple-600"></i>';
+          bgIcon = 'bg-purple-50 border-purple-200';
+        }
+
+        const timeStr = formatRelativeTime(n.timestamp);
+
+        return `
+          <div onclick="handleNotificationClick('${n.id}')"
+            class="group p-2.5 sm:p-3 rounded-2xl border transition cursor-pointer flex items-start gap-2.5 relative ${
+              n.read
+                ? 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/80 opacity-75'
+                : 'bg-white border-amber-300 hover:border-amber-400 shadow-xs hover:shadow-md'
+            }">
+            <div class="w-8 h-8 rounded-xl border flex items-center justify-center text-sm shrink-0 shadow-xs ${bgIcon}">
+              ${iconHtml}
+            </div>
+            <div class="flex-1 min-w-0 pr-1">
+              <div class="flex items-center justify-between gap-1">
+                <h4 class="text-xs ${n.read ? 'font-bold text-slate-800' : 'font-black text-slate-950'} truncate">
+                  ${n.title}
+                </h4>
+                <span class="text-[9px] ${n.read ? 'text-slate-400' : 'text-amber-800 font-extrabold bg-amber-100 px-1.5 py-0.2 rounded'} shrink-0">
+                  ${timeStr}
+                </span>
+              </div>
+              <p class="text-[11px] ${n.read ? 'text-slate-500' : 'text-slate-700 font-semibold'} mt-0.5 line-clamp-2 leading-snug">
+                ${n.body}
+              </p>
+            </div>
+            ${!n.read ? `
+              <div class="w-2 h-2 rounded-full bg-blue-600 shadow-sm shrink-0 self-center animate-pulse" title="अपठित (Unread)"></div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Close Notification Drawer on outside click
+    document.addEventListener('click', e => {
+      const drawer = document.getElementById('admin-notif-drawer');
+      const btn = document.getElementById('admin-notif-bell-btn');
+      if (drawer && btn && !drawer.classList.contains('hidden')) {
+        if (!drawer.contains(e.target) && !btn.contains(e.target)) {
+          drawer.classList.add('hidden');
+        }
+      }
+    });
     }
 
     function showInAppFloatingBanner(title, body, url) {
@@ -1342,6 +1684,7 @@
               appUsers.unshift(user);
             }
             updateUsersUI();
+            triggerPushNotification('👤 नया ग्राहक लॉगिन', `${user.name} (${user.phone || user.email || 'मोबाइल'}) ऐप पर जुड़े`, './admin', 'userLogin');
             showToast(`👤 नया ग्राहक लॉगिन: ${user.name} (${user.provider === 'google' ? 'Google' : 'फ़ोन'})`);
           }
         } catch(err){}
@@ -2128,7 +2471,14 @@
 
       initNotificationPermissionPrompt();
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('../sw.js?v=5').catch(() => {});
+        const swPath = window.location.pathname.includes('/admin') ? '../sw.js?v=5' : './sw.js?v=5';
+        navigator.serviceWorker.register(swPath).catch(() => {});
+      }
+
+      // Ensure customer app link points to active server environment
+      const custAppBtn = document.getElementById('header-open-cust-app');
+      if (custAppBtn) {
+        custAppBtn.href = `${SERVER}/`;
       }
 
       connectSSE(); // 🔌 Connect to live relay server
@@ -2158,6 +2508,17 @@
       renderMechanicsGrid();
       fetchMechanics();
       setInterval(fetchMechanics, 4000);
+
+      // 🔔 Initialize Notification Center (Bell Icon & Unread Counter)
+      loadAdminNotifications();
+
+      // Restore previously open panel (persists across refresh & minimize)
+      try {
+        const savedPanel = localStorage.getItem('pw_admin_active_panel');
+        if (savedPanel && document.getElementById(savedPanel)) {
+          showPanel(savedPanel);
+        }
+      } catch(e){}
     });
 
     function updateLiveTime() {
@@ -2167,6 +2528,11 @@
 
     // ---- Panel Navigation ----
     function showPanel(panelId) {
+      if (!panelId) panelId = 'panel-dashboard';
+      try {
+        localStorage.setItem('pw_admin_active_panel', panelId);
+      } catch(e){}
+
       closeSidebar(); // close on mobile when nav item tapped
       document.querySelectorAll('main > div').forEach(p => p.classList.add('hidden'));
       document.getElementById(panelId).classList.remove('hidden');
