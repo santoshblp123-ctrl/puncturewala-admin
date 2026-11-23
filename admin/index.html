@@ -62,7 +62,7 @@
 <body class="bg-slate-100 text-slate-800 min-h-screen flex">
 
   <!-- ========== SIDEBAR OVERLAY (mobile) ========== -->
-  <div id="sidebar-overlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-20"></div>
+  <div id="sidebar-overlay" onclick="closeSidebar()" class="hidden fixed inset-0 bg-black/50 z-20"></div>
 
   <!-- ========== SIDEBAR ========== -->
   <aside id="sidebar" class="w-64 bg-slate-900 text-white flex flex-col fixed inset-y-0 left-0 z-30">
@@ -1391,7 +1391,6 @@
         }
       }
     });
-    }
 
     function showInAppFloatingBanner(title, body, url) {
       let banner = document.getElementById('pw-inapp-notification-banner');
@@ -2449,12 +2448,23 @@
 
     // ── Sidebar toggle (mobile) ────────────────────────────────────────────
     function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('sidebar-open');
-      document.getElementById('sidebar-overlay').classList.toggle('show');
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (sidebar) sidebar.classList.toggle('sidebar-open');
+      if (overlay) {
+        overlay.classList.toggle('show');
+        if (overlay.classList.contains('show')) overlay.classList.remove('hidden');
+        else overlay.classList.add('hidden');
+      }
     }
     function closeSidebar() {
-      document.getElementById('sidebar').classList.remove('sidebar-open');
-      document.getElementById('sidebar-overlay').classList.remove('show');
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (sidebar) sidebar.classList.remove('sidebar-open');
+      if (overlay) {
+        overlay.classList.remove('show');
+        overlay.classList.add('hidden');
+      }
     }
 
     // ── Init ────────────────────────────────────────────────────────────────
