@@ -1038,6 +1038,14 @@
       return 'https://puncherwala.in';
     })();
 
+    // ── Smart Server 403 Forbidden Guard & Adaptive Backoff ──
+    let serverIsBlocked403 = false;
+    let sseRetryDelay = 2000;
+    let sseInstance = null;
+    let lastOrderFetchTime = 0;
+    let lastUsersFetchTime = 0;
+    let lastMechanicsFetchTime = 0;
+
     // ── Firebase Configuration for FCM & Cloud Notifications ──
     const firebaseConfig = {
       apiKey: "AIzaSyDrD2bdMVL_FA-ty7_B6jUVyrarYE6cfQk",
@@ -1472,12 +1480,20 @@
 
     // ── SSE: Connect to Live Server ────────────────────────────────────────
     function connectSSE() {
-      const sse = new EventSource(`${SERVER}/api/events`);
+      if (serverIsBlocked403) return;
+      try {
+        if (sseInstance) {
+          try { sseInstance.close(); } catch(e){}
+        }
+        sseInstance = new EventSource(`${SERVER}/api/events`);
+        const sse = sseInstance;
 
-      sse.addEventListener('connected', () => {
-        console.log('[SSE] Connected to PunctureWala Live Server');
-        showToast('🟢 Live Server से जुड़ गए! ग्राहक बुकिंग अब रियल-टाइम दिखेगी।');
-      });
+        sse.addEventListener('connected', () => {
+          serverIsBlocked403 = false;
+          sseRetryDelay = 2000;
+          console.log('[SSE] Connected to PunctureWala Live Server');
+          showToast('🟢 Live Server से जुड़ गए! ग्राहक बुकिंग अब रियल-टाइम दिखेगी।');
+        });
 
       // 🔔 New order received from Customer App
       sse.addEventListener('new-order', e => {
@@ -1702,17 +1718,33 @@
       });
 
       sse.onerror = () => {
-        console.warn('[SSE] Stream closed or offline — auto reconnecting...');
         try { sse.close(); } catch(e){}
-        setTimeout(connectSSE, 1500);
+        sseRetryDelay = Math.min(sseRetryDelay * 1.5, 30000);
+        console.warn(`[SSE] Stream disconnected. Reconnecting in ${Math.round(sseRetryDelay/1000)}s...`);
+        setTimeout(connectSSE, sseRetryDelay);
       };
+    } catch(err) {
+      console.warn('[SSE] Connection error:', err);
     }
+  }
 
     // ── HTTP Smart Polling Fallback (Works on Hostinger & all proxies) ────
     function fetchOrders() {
+      const now = Date.now();
+      if (serverIsBlocked403 && (now - lastOrderFetchTime < 15000)) {
+        return; // Guard against continuous 403 error storm
+      }
+      lastOrderFetchTime = now;
+
       fetch(`${SERVER}/api/orders`)
         .then(r => {
+          if (r.status === 403) {
+            serverIsBlocked403 = true;
+            console.warn('[Server 403 Forbidden] Hostinger file permissions require 755/644 fix. Fast polling paused.');
+            throw new Error('HTTP 403 Forbidden');
+          }
           if (!r.ok) throw new Error('HTTP ' + r.status);
+          serverIsBlocked403 = false;
           return r.json();
         })
         .then(serverOrders => {
@@ -1761,8 +1793,18 @@
     let activeUserFilter = 'all';
 
     function fetchUsers(showFeedback = false) {
+      const now = Date.now();
+      if (serverIsBlocked403 && (now - lastUsersFetchTime < 15000)) return;
+      lastUsersFetchTime = now;
+
       fetch(`${SERVER}/api/users`)
-        .then(r => r.json())
+        .then(r => {
+          if (r.status === 403) {
+            serverIsBlocked403 = true;
+            throw new Error('HTTP 403 Forbidden');
+          }
+          return r.json();
+        })
         .then(data => {
           if (data && Array.isArray(data.users)) {
             appUsers = data.users;
@@ -4025,8 +4067,18 @@
     }
 
     function fetchMechanics() {
+      const now = Date.now();
+      if (serverIsBlocked403 && (now - lastMechanicsFetchTime < 15000)) return;
+      lastMechanicsFetchTime = now;
+
       fetch(`${SERVER}/api/mechanics`)
-        .then(r => r.json())
+        .then(r => {
+          if (r.status === 403) {
+            serverIsBlocked403 = true;
+            throw new Error('HTTP 403 Forbidden');
+          }
+          return r.json();
+        })
         .then(res => {
           if (res && Array.isArray(res.mechanics)) {
             mechanicsList = res.mechanics;
