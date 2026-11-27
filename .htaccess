@@ -24,3 +24,11 @@ RewriteRule ^admin$ admin/ [R=301,L]
 AddType application/manifest+json .webmanifest .json
 AddType application/vnd.android.package-archive .apk
 </IfModule>
+
+# Force direct download for APK files in all browsers
+<IfModule mod_headers.c>
+<FilesMatch "\.(apk)$">
+    ForceType application/vnd.android.package-archive
+    Header set Content-Disposition "attachment"
+</FilesMatch>
+</IfModule>
