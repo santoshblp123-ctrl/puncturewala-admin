@@ -1492,7 +1492,6 @@
           serverIsBlocked403 = false;
           sseRetryDelay = 2000;
           console.log('[SSE] Connected to PunctureWala Live Server');
-          showToast('🟢 Live Server से जुड़ गए! ग्राहक बुकिंग अब रियल-टाइम दिखेगी।');
         });
 
       // 🔔 New order received from Customer App
@@ -4107,11 +4106,20 @@
 
     // ---- Toast ----
     function showToast(msg) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      // Prevent duplicate stacked messages
+      const existingToasts = Array.from(container.children);
+      if (existingToasts.some(t => t.innerText === msg)) return;
+      if (existingToasts.length >= 2) {
+        existingToasts[0].remove();
+      }
+
       const toast = document.createElement('div');
-      toast.className = 'toast bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl border border-slate-700 max-w-xs';
+      toast.className = 'toast bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl border border-slate-700 max-w-xs animate-fade-in';
       toast.innerText = msg;
-      document.getElementById('toast-container').appendChild(toast);
-      setTimeout(() => toast.remove(), 4200);
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
     }
   </script>
 
