@@ -1752,6 +1752,9 @@
     // ── HTTP Smart Polling Fallback (Works on Hostinger & all proxies) ────
     function fetchOrders() {
       const now = Date.now();
+      if (document.hidden && (now - lastOrderFetchTime < 20000)) {
+        return; // Slow down polling when tab is in background
+      }
       if (serverIsBlocked403 && (now - lastOrderFetchTime < 15000)) {
         return; // Guard against continuous 403 error storm
       }
@@ -1761,11 +1764,15 @@
         .then(r => {
           if (r.status === 403) {
             serverIsBlocked403 = true;
-            console.warn('[Server 403 Forbidden] Hostinger file permissions require 755/644 fix. Fast polling paused.');
+            console.warn('[Server 403 Forbidden] Rate/access limit hit. Polling backed off to 15s.');
             throw new Error('HTTP 403 Forbidden');
           }
           if (!r.ok) throw new Error('HTTP ' + r.status);
+          const wasBlocked = serverIsBlocked403;
           serverIsBlocked403 = false;
+          if (wasBlocked || !sseInstance || sseInstance.readyState === EventSource.CLOSED) {
+            setTimeout(connectSSE, 300);
+          }
           return r.json();
         })
         .then(serverOrders => {
@@ -2565,7 +2572,10 @@
 
       connectSSE(); // 🔌 Connect to live relay server
       fetchOrders(); // 🔄 Initial fetch
-      setInterval(fetchOrders, 2000); // 🔄 Smart 2s sync (instant response with 50% less server load)
+      setInterval(fetchOrders, 3000); // 🔄 Smart 3s sync + instant SSE push
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchOrders();
+      });
 
       fetchUsers(); // 👥 Initial fetch registered users
       setInterval(fetchUsers, 25000); // 👥 Sync registered users every 25 seconds
