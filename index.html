@@ -1554,15 +1554,22 @@
 
       // All orders on reconnect
       sse.addEventListener('all-orders', e => {
-        const serverOrders = JSON.parse(e.data);
-        serverOrders.forEach(o => {
-          const idx = orders.findIndex(x => x.id === o.id);
-          if (idx !== -1) {
-            orders[idx] = o;
-          } else {
-            orders.push(o);
-          }
-        });
+        try {
+          const serverOrders = JSON.parse(e.data);
+          if (!Array.isArray(serverOrders)) return;
+          const curTime = Date.now();
+          serverOrders.forEach(o => {
+            const idx = orders.findIndex(x => x.id === o.id);
+            if (idx !== -1) {
+              const local = orders[idx];
+              if (local && local._localUpdated && (curTime - local._localUpdated < 15000)) {
+                return; // Keep local status!
+              }
+              orders[idx] = o;
+            } else {
+              orders.push(o);
+            }
+          });
         orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         renderRecentOrders();
         renderOrdersList();
@@ -1570,6 +1577,7 @@
 
         // Re-drop all pins
         orders.filter(o => o.lat).forEach(dropCustomerPin);
+        } catch(err){}
       });
 
       // Orders cleared by admin (another tab/device)
@@ -1760,12 +1768,21 @@
             return;
           }
 
-          // Check if truly new orders arrived to sound notification
-          const existingIds = new Set(orders.map(o => o.id));
-          const hasNew = serverOrders.some(o => !existingIds.has(o.id));
+          // Merge server orders without reverting recently updated local orders!
+          const curTime = Date.now();
+          const merged = serverOrders.map(so => {
+            const local = orders.find(lo => lo.id === so.id);
+            if (local && local._localUpdated && (curTime - local._localUpdated < 15000)) {
+              return { ...so, status: local.status, cancelReason: local.cancelReason || so.cancelReason, _localUpdated: local._localUpdated };
+            }
+            return so;
+          });
 
-          // Sync local array with server truth so deleted orders don't reappear!
-          orders = serverOrders;
+          // Check if truly new pending orders arrived to sound notification
+          const existingIds = new Set(orders.map(o => o.id));
+          const hasNew = merged.some(o => !existingIds.has(o.id) && o.status === 'pending');
+
+          orders = merged;
           orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
           // Drop pins for orders with lat/lng
@@ -2534,10 +2551,10 @@
 
       connectSSE(); // 🔌 Connect to live relay server
       fetchOrders(); // 🔄 Initial fetch
-      setInterval(fetchOrders, 1000); // 🔄 Ultra-fast 1s sync (guarantees real-time on all proxies & mobile)
+      setInterval(fetchOrders, 2000); // 🔄 Smart 2s sync (instant response with 50% less server load)
 
       fetchUsers(); // 👥 Initial fetch registered users
-      setInterval(fetchUsers, 4000); // 👥 Sync registered users every 4 seconds
+      setInterval(fetchUsers, 25000); // 👥 Sync registered users every 25 seconds
 
       // Fetch live van status on load
       fetch(`${SERVER}/api/van-status`)
@@ -2558,7 +2575,7 @@
       // Render mechanics team grid & fetch updates
       renderMechanicsGrid();
       fetchMechanics();
-      setInterval(fetchMechanics, 4000);
+      setInterval(fetchMechanics, 30000);
 
       // 🔔 Initialize Notification Center (Bell Icon & Unread Counter)
       loadAdminNotifications();
@@ -2895,6 +2912,7 @@
       const order = orders.find(o => o.id === orderId);
       if (order) {
         order.status = newStatus;
+        order._localUpdated = Date.now(); // 🔒 Lock status locally so background fetch never reverts it!
         if (reason) order.cancelReason = reason;
         dropCustomerPin(order);
       }
@@ -2937,7 +2955,10 @@
       .then(data => {
         if (data && data.order) {
           const idx = orders.findIndex(o => o.id === orderId);
-          if (idx !== -1) orders[idx] = data.order;
+          if (idx !== -1) {
+            orders[idx] = data.order;
+            orders[idx]._localUpdated = Date.now();
+          }
           renderOrdersList();
           renderRecentOrders();
           updateKPIs();
