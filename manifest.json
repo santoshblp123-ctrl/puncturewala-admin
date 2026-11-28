@@ -1,8 +1,9 @@
 {
-  "name": "पंचर-वाला 24x7 - ऑन-रोड टायर रिपेयर",
-  "short_name": "PunctureWala",
-  "description": "24×7 इमरजेंसी ऑन-रोड टायर पंचर, रीफिल और मोबाइल वैन सहायता",
-  "start_url": "./index.html",
+  "name": "PunctureWala Admin Dashboard",
+  "short_name": "PW Admin",
+  "description": "24×7 PunctureWala Admin & Live Dispatch Dashboard",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
@@ -19,12 +20,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "./icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
     }
-  ],
-  "categories": ["auto", "utilities", "travel"]
+  ]
 }

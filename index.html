@@ -2,8 +2,20 @@
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>PunctureWala Admin Dashboard</title>
+
+  <!-- PWA & Apple iPhone Home-Screen Support -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PW Admin">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -130,6 +142,11 @@
           <div class="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
         </label>
       </div>
+      <button id="btn-admin-iphone-install" type="button" onclick="openAdminIosInstallGuide()"
+        class="mt-3 w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer">
+        <i class="fa-brands fa-apple text-sm text-amber-400"></i>
+        <span>iPhone में इंस्टॉल करें</span>
+      </button>
     </div>
   </aside>
 
@@ -5046,5 +5063,109 @@
       </div>
     </div>
   </div>
+
+  <!-- ══ APPLE IPHONE PWA INSTALL GUIDE MODAL (ADMIN) ══ -->
+  <div id="admin-ios-install-modal" class="hidden fixed inset-0 z-[999] bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-500/40 rounded-3xl max-w-sm w-full p-5 text-white shadow-2xl space-y-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl shadow-md shrink-0">
+            <i class="fa-brands fa-apple"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-base text-white leading-tight">iPhone में Admin ऐप जोड़ें</h3>
+            <p class="text-[11px] text-amber-300 font-semibold mt-0.5">बिना App Store के फुल-स्क्रीन ऐप</p>
+          </div>
+        </div>
+        <button type="button" onclick="dismissAdminIosInstallGuide(true)" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="admin-ios-safari-warning" class="hidden bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-xs text-amber-200 space-y-2">
+        <p class="font-bold flex items-center gap-1.5">
+          <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+          <span>ध्यान दें: पहले यह लिंक iPhone में <strong>Safari</strong> ब्राउज़र में खोलें</span>
+        </p>
+        <button type="button" onclick="copyAdminUrlForSafari()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 rounded-xl text-xs transition cursor-pointer">
+          <i class="fa-solid fa-copy mr-1"></i> Safari के लिए लिंक कॉपी करें
+        </button>
+      </div>
+
+      <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 text-xs">
+        <div class="flex items-start gap-2.5">
+          <span class="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+          <p class="text-slate-200">Safari के नीचे बीच में <strong class="text-amber-300"><i class="fa-solid fa-arrow-up-from-bracket mx-0.5"></i> Share</strong> बटन दबाएं।</p>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <span class="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+          <p class="text-slate-200">नीचे स्क्रॉल करके <strong class="text-amber-300">"Add to Home Screen"</strong> (होम स्क्रीन पर जोड़ें) चुनें।</p>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <span class="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+          <p class="text-slate-200">ऊपर दाईं ओर <strong class="text-emerald-400">"Add"</strong> दबाएं — होम स्क्रीन पर एडमिन ऐप आइकन तैयार हो जाएगा!</p>
+        </div>
+      </div>
+
+      <button type="button" onclick="dismissAdminIosInstallGuide(true)" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition cursor-pointer">
+        समझ गया / बंद करें
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function isAdminIOSDevice() {
+      const ua = navigator.userAgent || '';
+      return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function isAdminStandalonePWA() {
+      return window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    }
+
+    function isAdminIOSSafari() {
+      const ua = navigator.userAgent || '';
+      return isAdminIOSDevice() && !/CriOS|FxiOS|EdgiOS|OPiOS|FBAN|FBAV|Instagram|WhatsApp/i.test(ua) && /Safari/i.test(ua);
+    }
+
+    function openAdminIosInstallGuide() {
+      const modal = document.getElementById('admin-ios-install-modal');
+      const warn = document.getElementById('admin-ios-safari-warning');
+      if (warn) {
+        if (isAdminIOSDevice() && !isAdminIOSSafari()) warn.classList.remove('hidden');
+        else warn.classList.add('hidden');
+      }
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function dismissAdminIosInstallGuide(remember = true) {
+      const modal = document.getElementById('admin-ios-install-modal');
+      if (modal) modal.classList.add('hidden');
+      if (remember) {
+        try { localStorage.setItem('pw_admin_ios_dismissed_at', String(Date.now())); } catch (e) {}
+      }
+    }
+
+    function copyAdminUrlForSafari() {
+      const url = window.location.href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          if (typeof showToast === 'function') showToast('✅ लिंक कॉपी हुआ! अब Safari में खोलकर Add to Home Screen करें');
+        }).catch(() => { prompt('Safari में खोलने के लिए यह लिंक कॉपी करें:', url); });
+      } else {
+        prompt('Safari में खोलने के लिए यह लिंक कॉपी करें:', url);
+      }
+    }
+
+    (function initAdminIosPwaPrompt() {
+      const isNative = Boolean(window.AndroidBridge && typeof window.AndroidBridge.isNative === 'function' && window.AndroidBridge.isNative());
+      if (isNative || !isAdminIOSDevice() || isAdminStandalonePWA()) return;
+      try {
+        const lastDismissed = parseInt(localStorage.getItem('pw_admin_ios_dismissed_at') || '0', 10);
+        if (lastDismissed && (Date.now() - lastDismissed) < 3 * 24 * 60 * 60 * 1000) return;
+      } catch (e) {}
+      setTimeout(() => { openAdminIosInstallGuide(); }, 2500);
+    })();
+  </script>
 </body>
 </html>
