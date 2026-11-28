@@ -600,7 +600,7 @@
               <span class="text-slate-500">,</span>
               <span id="gps-lng" class="font-mono font-bold text-amber-300">—</span>
             </div>
-            <a id="gps-maps-link" href="#" target="_blank" class="flex items-center gap-1 text-blue-400 hover:text-blue-300 font-semibold">
+            <a id="gps-maps-link" href="#" target="_blank" onclick="return openGoogleMapsUrl(this.href, event)" class="flex items-center gap-1 text-blue-400 hover:text-blue-300 font-semibold">
               <i class="fa-solid fa-map"></i> Google Maps में खोलें
             </a>
             <span id="gps-address" class="text-slate-400 italic truncate max-w-xs"></span>
@@ -2274,12 +2274,40 @@
     }
 
     let activeLiveCardOrderId = null;
+    window.otpDrafts = window.otpDrafts || {};
+    let lastOrdersRenderSig = null;
+    let lastLiveCardRenderSig = null;
+    let pendingOrdersListRender = false;
+    let pendingLiveCardOrder = null;
+
+    function handleOtpDraftInput(orderId, inputEl) {
+      if (!inputEl) return;
+      const cleaned = String(inputEl.value || '').replace(/\D/g, '').slice(0, 4);
+      if (inputEl.value !== cleaned) inputEl.value = cleaned;
+      window.otpDrafts[orderId] = cleaned;
+    }
+
+    function isUserTypingOtpIn(containerId) {
+      const active = document.activeElement;
+      if (!active || active.tagName !== 'INPUT') return false;
+      const container = document.getElementById(containerId);
+      return Boolean(container && container.contains(active) && active.id && active.id.includes('otp-input-'));
+    }
 
     // ── Live Location Card (shows latest customer details + GPS link + Accept/Reject Action Buttons) ──────
-    function updateLiveLocationCard(order) {
+    function updateLiveLocationCard(order, force = false) {
       let card = document.getElementById('live-location-card');
       if (!card || !order) return;
       activeLiveCardOrderId = order.id;
+
+      const liveSig = `${order.id}:${order.status}:${Boolean(order.otpVerified)}:${order.amount}:${order.lat || ''}:${order.lng || ''}:${order.cancelReason || ''}`;
+      if (!force && liveSig === lastLiveCardRenderSig) return;
+      if (!force && isUserTypingOtpIn('live-location-card')) {
+        pendingLiveCardOrder = order;
+        return;
+      }
+      lastLiveCardRenderSig = liveSig;
+      pendingLiveCardOrder = null;
 
       const mapsUrl = order.lat && order.lng
         ? `https://www.google.com/maps?q=${order.lat},${order.lng}`
@@ -2327,7 +2355,7 @@
             </div>
           </div>
           <div class="flex flex-col gap-1.5 shrink-0">
-            <a href="${mapsUrl}" target="_blank"
+            <a href="${mapsUrl}" target="_blank" onclick="return openGoogleMapsUrl(this.href, event)"
                class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition shadow">
               <i class="fa-solid fa-map-location-dot"></i> Google Maps खोलें
             </a>
@@ -2368,7 +2396,10 @@
               </span>
             </div>
             <div class="flex gap-2">
-              <input id="live-card-otp-input-${order.id}" type="number" maxlength="4" placeholder="4-अंकों का OTP दर्ज करें"
+              <input id="live-card-otp-input-${order.id}" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="4-अंकों का OTP दर्ज करें"
+                value="${escapeHtml(window.otpDrafts[order.id] || '')}"
+                oninput="handleOtpDraftInput('${order.id}', this)"
+                onblur="setTimeout(() => { if (pendingLiveCardOrder) updateLiveLocationCard(pendingLiveCardOrder); }, 300)"
                 onkeydown="if(event.key==='Enter') verifyLiveCardOtp('${order.id}')"
                 class="flex-1 bg-white border-2 border-blue-400 rounded-xl px-3 py-2 text-center font-black text-base tracking-widest text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-400 shadow-inner">
               <button id="live-card-otp-btn-${order.id}" onclick="verifyLiveCardOtp('${order.id}')"
@@ -2688,7 +2719,7 @@
       `).join('');
     }
 
-    function renderOrdersList() {
+    function renderOrdersList(force = false) {
       let filtered = [];
       if (currentFilter === 'live') {
         filtered = orders.filter(o => o.status !== 'cancelled' && o.status !== 'done');
@@ -2703,6 +2734,17 @@
         const labelName = currentFilter === 'live' ? 'लाइव ऑर्डर्स' : currentFilter === 'cancelled' ? 'रद्द बुकिंग' : currentFilter;
         countLabel.innerText = `${filtered.length} ऑर्डर (${labelName})`;
       }
+
+      const renderSig = `${currentFilter}|` + filtered.map(o => `${o.id}:${o.status}:${o.otpVerified ? 1 : 0}:${o.price || o.totalPrice || o.total || ''}:${o.lat || ''},${o.lng || ''}:${o.driverName || o.mechanicName || ''}:${o.driverPhone || ''}`).join(';');
+      if (!force && renderSig === lastOrdersRenderSig) {
+        return;
+      }
+      if (!force && isUserTypingOtpIn('orders-list')) {
+        pendingOrdersListRender = true;
+        return;
+      }
+      lastOrdersRenderSig = renderSig;
+      pendingOrdersListRender = false;
 
       if (filtered.length === 0) {
         let emptyMsg = 'कोई ऑर्डर नहीं';
@@ -2793,7 +2835,11 @@
               </span>
             </div>
             <div class="flex gap-2">
-              <input id="otp-input-${o.id}" type="number" maxlength="4" placeholder="4-अंकों का OTP डालें"
+              <input id="otp-input-${o.id}" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code"
+                value="${(window.otpDrafts && window.otpDrafts[o.id]) || ''}"
+                placeholder="4-अंकों का OTP डालें"
+                oninput="handleOtpDraftInput('${o.id}', this)"
+                onblur="setTimeout(() => { if (pendingOrdersListRender && !isUserTypingOtpIn('orders-list')) { pendingOrdersListRender = false; renderOrdersList(true); } }, 220)"
                 onkeydown="if(event.key==='Enter') verifyOtp('${o.id}')"
                 class="flex-1 bg-white border-2 border-blue-300 rounded-xl px-3 py-2 text-center font-black text-base tracking-widest text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <button id="otp-btn-${o.id}" onclick="verifyOtp('${o.id}')"
@@ -2918,7 +2964,7 @@
         active.classList.add('bg-slate-900', 'text-white', 'shadow-sm');
         active.classList.remove('bg-white', 'text-slate-600', 'border-slate-300', 'border-red-300', 'text-red-600');
       }
-      renderOrdersList();
+      renderOrdersList(true);
     }
 
     function startRide(orderId) {
@@ -2938,6 +2984,9 @@
     }
 
     function updateOrderStatus(orderId, newStatus, reason = '') {
+      if (newStatus !== 'arrived' && window.otpDrafts) {
+        delete window.otpDrafts[orderId];
+      }
       // 1. Immediately update local state so UI is 100% instant & never blocks
       const order = orders.find(o => o.id === orderId);
       if (order) {
@@ -2947,7 +2996,7 @@
         dropCustomerPin(order);
       }
       if (activeLiveCardOrderId === orderId && order) {
-        updateLiveLocationCard(order);
+        updateLiveLocationCard(order, true);
       }
 
       if (newStatus === 'cancelled') {
@@ -2971,7 +3020,7 @@
         showToast(`🏁 ऑर्डर ${orderId} पूरा हुआ!`);
       }
 
-      renderOrdersList();
+      renderOrdersList(true);
       renderRecentOrders();
       updateKPIs();
 
@@ -2989,7 +3038,7 @@
             orders[idx] = data.order;
             orders[idx]._localUpdated = Date.now();
           }
-          renderOrdersList();
+          renderOrdersList(true);
           renderRecentOrders();
           updateKPIs();
         }
@@ -3378,6 +3427,9 @@
             el.classList.remove('hidden');
           });
 
+          if (window.otpDrafts) {
+            delete window.otpDrafts[orderId];
+          }
           showToast(`✅ OTP Verified! सर्विस शुरू हो गई — ${orderId}`);
           const order = orders.find(o => o.id === orderId);
           if (order) {
@@ -3397,12 +3449,12 @@
               loadingModal.classList.remove('flex');
             }
             errTargets.forEach(el => el.classList.add('hidden'));
-            renderOrdersList();
+            renderOrdersList(true);
             renderRecentOrders();
             updateKPIs();
             if (order) {
               if (activeLiveCardOrderId === order.id) {
-                updateLiveLocationCard(order);
+                updateLiveLocationCard(order, true);
               }
               dropCustomerPin(order);
               syncVanPosition();
@@ -4313,7 +4365,7 @@
       </div>
       <div id="leaflet-map" style="height:320px;width:100%;"></div>
       <div class="px-5 py-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-        <a id="map-gmaps-link" href="#" target="_blank"
+        <a id="map-gmaps-link" href="#" target="_blank" onclick="return openGoogleMapsUrl(this.href, event)"
            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition">
           <i class="fa-solid fa-map-location-dot"></i> Google Maps में खोलें
         </a>
@@ -4340,7 +4392,8 @@
             <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:
           </p>
           <div class="flex gap-2">
-            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+            <input id="modal-otp-input" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="0000"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <button id="modal-otp-btn" onclick="modalVerifyOtp()"
@@ -4355,6 +4408,32 @@
   </div>
 
   <script>
+    function openGoogleMapsUrl(url, ev) {
+      if (!url || url === '#' || url.endsWith('#')) {
+        if (ev) ev.preventDefault();
+        return false;
+      }
+      if (window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
+        if (ev) ev.preventDefault();
+        window.AndroidBridge.openExternalUrl(url);
+        return false;
+      }
+      if (ev) ev.preventDefault();
+      window.open(url, '_blank', 'noopener');
+      return false;
+    }
+
+    document.addEventListener('click', function (ev) {
+      if (!(window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function')) return;
+      const anchor = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+      if (!anchor) return;
+      const href = anchor.getAttribute('href') || '';
+      if (/^(geo:|intent:|tel:|mailto:)|google\.com\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps|wa\.me\/|api\.whatsapp\.com/i.test(href)) {
+        ev.preventDefault();
+        window.AndroidBridge.openExternalUrl(anchor.href || href);
+      }
+    });
+
     // ── Map Modal ────────────────────────────────────────────────────────────
     let leafletMap       = null;
     let customerMarker   = null;
@@ -4385,7 +4464,8 @@
             <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:
           </p>
           <div class="flex gap-2">
-            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+            <input id="modal-otp-input" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="0000"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <button id="modal-otp-btn" onclick="modalVerifyOtp()"
@@ -4496,7 +4576,8 @@
             <i class="fa-solid fa-shield-halved text-blue-600"></i> ग्राहक की स्क्रीन से 4 अंकों का कोड पूछें:
           </p>
           <div class="flex gap-2">
-            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+            <input id="modal-otp-input" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="0000"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <button id="modal-otp-btn" onclick="modalVerifyOtp()"
@@ -4527,7 +4608,8 @@
             </span>
           </p>
           <div class="flex gap-2">
-            <input id="modal-otp-input" type="number" maxlength="4" placeholder="0000"
+            <input id="modal-otp-input" type="text" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="0000"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
               onkeydown="if(event.key==='Enter') modalVerifyOtp()"
               class="flex-1 border-2 border-blue-300 rounded-lg px-3 py-2 text-center font-black text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <button id="modal-otp-btn" onclick="modalVerifyOtp()"
