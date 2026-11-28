@@ -205,6 +205,11 @@
           </div>
         </div>
 
+        <button id="header-app-online-btn" type="button" onclick="toggleAdminAppOnline()" title="ग्राहक ऐप ऑनलाइन/ऑफलाइन स्विच"
+          class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0">
+          <span id="header-app-online-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="header-app-online-label" class="hidden sm:inline">ऐप ऑनलाइन</span>
+        </button>
         <a id="header-open-cust-app" href="/" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
           <i class="fa-solid fa-mobile-screen"></i>
           <span class="hidden sm:inline">ग्राहक ऐप खोलें</span>
@@ -263,14 +268,40 @@
             </div>
 
             <!-- Quick Toggle Buttons -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <button onclick="setAdminVanStatus(true, 0)" id="btn-set-free"
-                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow">
+                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow cursor-pointer">
                 <i class="fa-solid fa-check mr-1"></i> फ्री / उपलब्ध
               </button>
               <button onclick="setAdminVanStatus(false, 15)" id="btn-set-busy"
-                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">
+                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 cursor-pointer">
                 <i class="fa-solid fa-clock-rotate-left mr-1"></i> व्यस्त मार्क करें
+              </button>
+              <button onclick="toggleAdminAppOnline()" id="btn-toggle-app-online"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-red-600/20 text-red-300 hover:bg-red-600 hover:text-white border border-red-500/40 cursor-pointer">
+                <i class="fa-solid fa-power-off mr-1"></i> ऐप ऑफलाइन करें
+              </button>
+            </div>
+          </div>
+
+          <!-- App Offline Banner & Message Config (shown when appOnline === false) -->
+          <div id="admin-offline-config" class="hidden mt-3 bg-red-950/70 border border-red-500/50 rounded-xl p-3 space-y-2.5 text-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2 text-red-200 font-bold">
+                <i class="fa-solid fa-ban text-red-400 text-sm"></i>
+                <span>कस्टमर ऐप अभी OFFLINE है — ग्राहकों को ऐप बंद होने का पॉपअप दिख रहा है और नई बुकिंग बंद है!</span>
+              </div>
+              <button type="button" onclick="setAdminAppOnline(true)"
+                class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
+                <i class="fa-solid fa-power-off mr-1"></i> अभी ऑनलाइन करें
+              </button>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input id="admin-offline-reason" type="text" placeholder="ग्राहकों को दिखने वाला संदेश (जैसे: दुकान अभी बंद है / लंच ब्रेक)"
+                class="flex-1 bg-slate-900 border border-red-500/40 rounded-lg px-3 py-1.5 text-white placeholder-slate-400 focus:outline-none focus:border-red-400">
+              <button type="button" onclick="saveOfflineReason()"
+                class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
+                संदेश सेव करें
               </button>
             </div>
           </div>
@@ -1738,6 +1769,20 @@
         } catch(err){}
       });
 
+      sse.addEventListener('van-status', e => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data && typeof data === 'object') {
+            renderAdminVanDutyUI(
+              typeof data.free === 'boolean' ? data.free : currentVanFree,
+              data.busyMinutes || 0,
+              typeof data.appOnline === 'boolean' ? data.appOnline : currentAppOnline,
+              typeof data.offlineReason === 'string' ? data.offlineReason : currentOfflineReason
+            );
+          }
+        } catch(err){}
+      });
+
       sse.onerror = () => {
         try { sse.close(); } catch(e){}
         sseRetryDelay = Math.min(sseRetryDelay * 1.5, 30000);
@@ -2611,12 +2656,17 @@
       fetchUsers(); // 👥 Initial fetch registered users
       setInterval(fetchUsers, 25000); // 👥 Sync registered users every 25 seconds
 
-      // Fetch live van status on load
+      // Fetch live van & app online/offline status on load
       fetch(`${SERVER}/api/van-status`)
         .then(r => r.json())
         .then(data => {
-          if (data && typeof data.free === 'boolean') {
-            renderAdminVanDutyUI(data.free, data.busyMinutes || 15);
+          if (data && typeof data === 'object') {
+            renderAdminVanDutyUI(
+              typeof data.free === 'boolean' ? data.free : true,
+              data.busyMinutes || 15,
+              typeof data.appOnline === 'boolean' ? data.appOnline : true,
+              data.offlineReason || ''
+            );
           }
         })
         .catch(() => {});
@@ -3592,61 +3642,101 @@
 
     // ---- Global Van Toggle ----
     function toggleGlobalStatus() {
-      const checked = document.getElementById('global-van-toggle').checked;
-      const dot = document.getElementById('global-dot');
-      const text = document.getElementById('global-status-text');
-      if (checked) {
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
-        text.className = 'text-xs font-bold text-emerald-400';
-        text.innerText = 'उपलब्ध (Free)';
-        showToast('✅ वैन अब ऑनलाइन है — ग्राहक बुक कर सकते हैं');
-      } else {
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-400 pulse-dot';
-        text.className = 'text-xs font-bold text-red-400';
-        text.innerText = 'ऑफलाइन (Off Duty)';
-        showToast('⚠️ वैन ऑफलाइन — नई बुकिंग बंद है');
-      }
+      const toggle = document.getElementById('global-van-toggle');
+      const checked = toggle ? toggle.checked : true;
+      setAdminAppOnline(checked);
     }
 
     // ---- Mechanic Toggle ----
-    // ── Live Van Duty & Busy Control (Admin) ──
+    // ── Live Van Duty, Busy & App Online/Offline Control (Admin) ──
     let currentVanFree = true;
     let currentVanBusyMins = 15;
+    let currentAppOnline = true;
+    let currentOfflineReason = '';
 
-    function renderAdminVanDutyUI(free, busyMins = 15) {
+    function renderAdminVanDutyUI(free, busyMins = 15, appOnline = currentAppOnline, offlineReason = currentOfflineReason) {
       currentVanFree = free;
       currentVanBusyMins = busyMins;
+      currentAppOnline = appOnline !== false;
+      currentOfflineReason = typeof offlineReason === 'string' ? offlineReason : '';
 
       const pill = document.getElementById('admin-van-status-pill');
       const btnFree = document.getElementById('btn-set-free');
       const btnBusy = document.getElementById('btn-set-busy');
+      const btnAppOnline = document.getElementById('btn-toggle-app-online');
       const config = document.getElementById('admin-busy-config');
+      const offlineConfig = document.getElementById('admin-offline-config');
+      const reasonInput = document.getElementById('admin-offline-reason');
       const input = document.getElementById('admin-custom-minutes');
+      const globalToggle = document.getElementById('global-van-toggle');
+      const globalDot = document.getElementById('global-dot');
+      const globalText = document.getElementById('global-status-text');
+      const headerBtn = document.getElementById('header-app-online-btn');
+      const headerDot = document.getElementById('header-app-online-dot');
+      const headerLabel = document.getElementById('header-app-online-label');
 
       if (input) input.value = busyMins;
+      if (reasonInput && document.activeElement !== reasonInput) {
+        reasonInput.value = currentOfflineReason;
+      }
+      if (globalToggle) globalToggle.checked = currentAppOnline;
+
+      if (!currentAppOnline) {
+        if (globalDot) globalDot.className = 'w-2.5 h-2.5 rounded-full bg-red-400 pulse-dot';
+        if (globalText) {
+          globalText.className = 'text-xs font-bold text-red-400';
+          globalText.innerText = 'ऐप ऑफलाइन (बंद)';
+        }
+        if (headerBtn) headerBtn.className = 'bg-red-600 hover:bg-red-500 text-white border border-red-700 text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm cursor-pointer shrink-0';
+        if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-white animate-ping';
+        if (headerLabel) headerLabel.innerText = 'ऐप ऑफलाइन';
+        if (pill) {
+          pill.className = 'text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 px-2 py-0.5 rounded-full font-bold';
+          pill.innerText = '⛔ ऐप ऑफलाइन (App Off)';
+        }
+        if (btnAppOnline) {
+          btnAppOnline.className = 'px-3.5 py-2 rounded-xl text-xs font-black transition bg-emerald-600 hover:bg-emerald-500 text-white shadow ring-2 ring-emerald-400 cursor-pointer';
+          btnAppOnline.innerHTML = '<i class="fa-solid fa-power-off mr-1"></i> ऐप ऑनलाइन करें';
+        }
+        if (offlineConfig) offlineConfig.classList.remove('hidden');
+      } else {
+        if (globalDot) globalDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
+        if (globalText) {
+          globalText.className = 'text-xs font-bold text-emerald-400';
+          globalText.innerText = free ? 'ऑनलाइन (Free)' : `व्यस्त (~${busyMins}m)`;
+        }
+        if (headerBtn) headerBtn.className = 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 sm:px-3 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0';
+        if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        if (headerLabel) headerLabel.innerText = 'ऐप ऑनलाइन';
+        if (btnAppOnline) {
+          btnAppOnline.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-red-600/20 text-red-300 hover:bg-red-600 hover:text-white border border-red-500/40 cursor-pointer';
+          btnAppOnline.innerHTML = '<i class="fa-solid fa-power-off mr-1"></i> ऐप ऑफलाइन करें';
+        }
+        if (offlineConfig) offlineConfig.classList.add('hidden');
+      }
 
       if (free) {
-        if (pill) {
+        if (currentAppOnline && pill) {
           pill.className = 'text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold';
           pill.innerText = '🟢 उपलब्ध (Free)';
         }
         if (btnFree) {
-          btnFree.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow ring-2 ring-emerald-400';
+          btnFree.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow ring-2 ring-emerald-400 cursor-pointer';
         }
         if (btnBusy) {
-          btnBusy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700';
+          btnBusy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 cursor-pointer';
         }
         if (config) config.classList.add('hidden');
       } else {
-        if (pill) {
+        if (currentAppOnline && pill) {
           pill.className = 'text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold';
           pill.innerText = `🟠 व्यस्त (~${busyMins} मिनट)`;
         }
         if (btnFree) {
-          btnFree.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700';
+          btnFree.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 cursor-pointer';
         }
         if (btnBusy) {
-          btnBusy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 font-black shadow ring-2 ring-amber-400';
+          btnBusy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 font-black shadow ring-2 ring-amber-400 cursor-pointer';
         }
         if (config) config.classList.remove('hidden');
       }
@@ -3654,18 +3744,59 @@
 
     function setAdminVanStatus(isFree, mins = 15) {
       const busyMins = isFree ? 0 : (mins || 15);
-      renderAdminVanDutyUI(isFree, busyMins);
+      renderAdminVanDutyUI(isFree, busyMins, currentAppOnline, currentOfflineReason);
 
       fetch(`${SERVER}/api/van-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ free: isFree, busyMinutes: busyMins, queueCount: isFree ? 0 : 1 })
+        body: JSON.stringify({
+          free: isFree,
+          busyMinutes: busyMins,
+          queueCount: isFree ? 0 : 1,
+          appOnline: currentAppOnline,
+          offlineReason: currentOfflineReason
+        })
       })
       .then(r => r.json())
       .then(() => {
         showToast(isFree ? '✅ वैन उपलब्ध (Free) सेट हुई — ग्राहक तुरंत बुक कर सकते हैं' : `🟠 वैन व्यस्त सेट हुई — ग्राहकों को ${busyMins}m वेटिंग टाइम दिखेगा`);
       })
       .catch(() => showToast('❌ सर्वर से कनेक्ट नहीं हो सके'));
+    }
+
+    function setAdminAppOnline(isOnline, reasonOverride = null) {
+      const reasonInput = document.getElementById('admin-offline-reason');
+      const reason = reasonOverride !== null
+        ? reasonOverride
+        : (reasonInput ? reasonInput.value.trim() : currentOfflineReason);
+
+      renderAdminVanDutyUI(currentVanFree, currentVanBusyMins, isOnline, reason);
+
+      fetch(`${SERVER}/api/van-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          free: currentVanFree,
+          busyMinutes: currentVanBusyMins,
+          appOnline: Boolean(isOnline),
+          offlineReason: reason
+        })
+      })
+      .then(r => r.json())
+      .then(() => {
+        showToast(isOnline
+          ? '🟢 कस्टमर ऐप ऑनलाइन हो गई — सभी ग्राहक अब बुकिंग कर सकते हैं'
+          : '⛔ कस्टमर ऐप ऑफलाइन कर दी गई — सभी ग्राहकों की स्क्रीन पर बंद का पॉपअप दिखेगा');
+      })
+      .catch(() => showToast('❌ सर्वर से कनेक्ट नहीं हो सके'));
+    }
+
+    function toggleAdminAppOnline() {
+      setAdminAppOnline(!currentAppOnline);
+    }
+
+    function saveOfflineReason() {
+      setAdminAppOnline(false);
     }
 
     function setBusyMinutes(mins) {
